@@ -32,6 +32,9 @@ export function TopBar() {
       </h1>
       <div className="row">
         {name && <span className="who muted">Hola, {name}</span>}
+        <button className="ghost" onClick={() => navigate('/cuenta')}>
+          Cambiar contraseña
+        </button>
         <button className="ghost" onClick={onLogout}>
           Cerrar sesión
         </button>

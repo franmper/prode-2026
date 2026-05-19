@@ -4,6 +4,7 @@ import { Login } from './pages/Login';
 import { Signup } from './pages/Signup';
 import { Dashboard } from './pages/Dashboard';
 import { PoolDetail } from './pages/PoolDetail';
+import { ChangePassword } from './pages/ChangePassword';
 import './App.css';
 
 export default function App() {
@@ -24,6 +25,14 @@ export default function App() {
         element={
           <ProtectedRoute>
             <PoolDetail />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/cuenta"
+        element={
+          <ProtectedRoute>
+            <ChangePassword />
           </ProtectedRoute>
         }
       />
