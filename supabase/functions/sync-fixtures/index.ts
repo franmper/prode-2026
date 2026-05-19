@@ -68,6 +68,7 @@ Deno.serve(async (req) => {
     return new Response(null, { status: 204, headers: cors });
   }
 
+  try {
   const apiKey = Deno.env.get('FOOTBALL_API_KEY');
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -88,8 +89,8 @@ Deno.serve(async (req) => {
     );
   }
 
-  const json = (await res.json()) as { matches: FdMatch[] };
-  const matches = json.matches ?? [];
+  const payload = (await res.json()) as { matches: FdMatch[] };
+  const matches = payload.matches ?? [];
 
   const rows = matches
     .filter((m) => m.homeTeam?.name && m.awayTeam?.name)
@@ -116,4 +117,8 @@ Deno.serve(async (req) => {
   }
 
   return json({ synced: rows.length, total_from_api: matches.length });
+  } catch (e) {
+    // Surface the real error as JSON+CORS instead of an opaque 500.
+    return json({ error: e instanceof Error ? e.message : String(e) }, 500);
+  }
 });
