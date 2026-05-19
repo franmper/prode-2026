@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import type { Match, Prediction, Outcome } from '../lib/types';
+import { teamName } from '../lib/countries';
 import {
   matchPoints,
   isLocked,
@@ -75,7 +76,11 @@ export function MatchList() {
   }
 
   const label = (m: Match, o: Outcome) =>
-    o === 'home' ? `Gana ${m.home_team}` : o === 'away' ? `Gana ${m.away_team}` : 'Empate';
+    o === 'home'
+      ? `Gana ${teamName(m.home_team)}`
+      : o === 'away'
+        ? `Gana ${teamName(m.away_team)}`
+        : 'Empate';
 
   function renderMatch(m: Match) {
     const locked = isLocked(m, matches);
@@ -107,12 +112,12 @@ export function MatchList() {
         </div>
 
         <div className="matchup">
-          <span className="team">{m.home_team}</span>
+          <span className="team">{teamName(m.home_team)}</span>
           <span className="vs">
             {locked ? `${m.home_score ?? '–'} : ${m.away_score ?? '–'}` : 'vs'}
           </span>
           <span className="team" style={{ textAlign: 'right' }}>
-            {m.away_team}
+            {teamName(m.away_team)}
           </span>
         </div>
 
@@ -159,13 +164,21 @@ export function MatchList() {
     );
   }
 
-  if (loading) return <p className="muted">Cargando partidos…</p>;
+  if (loading) {
+    return (
+      <div className="card">
+        <p className="muted">Cargando partidos…</p>
+      </div>
+    );
+  }
   if (matches.length === 0) {
     return (
-      <p className="muted">
-        Todavía no hay partidos. Ejecutá la sincronización del fixture (ver
-        README) para cargar el calendario del Mundial.
-      </p>
+      <div className="card">
+        <p className="muted">
+          Todavía no hay partidos. Ejecutá la sincronización del fixture (ver
+          README) para cargar el calendario del Mundial.
+        </p>
+      </div>
     );
   }
 
@@ -188,27 +201,29 @@ export function MatchList() {
         const stageMatches = byStage.get(sk)!;
 
         if (sk === 'GROUP_STAGE') {
-          const byGroup = new Map<string, Match[]>();
+          // Subgroup by Fecha (matchday). -1 = matchday not synced yet.
+          const byFecha = new Map<number, Match[]>();
           for (const m of stageMatches) {
-            const g = m.group_name ?? '—';
-            (byGroup.get(g) ?? byGroup.set(g, []).get(g)!).push(m);
+            const f = m.matchday ?? -1;
+            (byFecha.get(f) ?? byFecha.set(f, []).get(f)!).push(m);
           }
-          const groupKeys = [...byGroup.keys()].sort();
-          return (
-            <section key={sk}>
-              <h3 className="phase-title">{stageLabel('GROUP_STAGE')}</h3>
-              {groupKeys.map((gk) => (
-                <div key={gk}>
-                  <h4 className="group-title">{groupLabel(gk) ?? gk}</h4>
-                  {byGroup.get(gk)!.map(renderMatch)}
-                </div>
-              ))}
-            </section>
+          const fechaKeys = [...byFecha.keys()].sort(
+            (a, b) => (a === -1 ? 99 : a) - (b === -1 ? 99 : b),
           );
+          return fechaKeys.map((fk) => (
+            <section key={`gs-${fk}`} className="card">
+              <h3 className="phase-title">
+                {fk === -1
+                  ? 'Fase de grupos · Fecha a confirmar'
+                  : `Fase de grupos · Fecha ${fk}`}
+              </h3>
+              {byFecha.get(fk)!.map(renderMatch)}
+            </section>
+          ));
         }
 
         return (
-          <section key={sk}>
+          <section key={sk} className="card">
             <h3 className="phase-title">
               {sk === '__none__' ? 'Partidos' : stageLabel(sk)}
             </h3>

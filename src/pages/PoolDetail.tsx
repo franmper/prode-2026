@@ -130,13 +130,13 @@ export function PoolDetail() {
         </button>
       </div>
 
-      <div className="card">
-        {tab === 'matches' ? (
-          <MatchList />
-        ) : (
+      {tab === 'matches' ? (
+        <MatchList />
+      ) : (
+        <div className="card">
           <Leaderboard poolId={pool.id} />
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
