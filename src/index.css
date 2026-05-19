@@ -1,0 +1,73 @@
+:root {
+  --bg: #0b1020;
+  --bg-card: #161c2e;
+  --bg-elev: #1e2742;
+  --border: #2a3354;
+  --text: #e8ecf6;
+  --muted: #93a0c0;
+  --brand: #00c389;
+  --brand-d: #00a473;
+  --accent: #ffd23f;
+  --danger: #ff5d6c;
+  --radius: 12px;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+}
+
+a { color: var(--brand); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+h1, h2, h3 { line-height: 1.2; }
+
+button {
+  font: inherit;
+  cursor: pointer;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 16px;
+  background: var(--brand);
+  color: #04130d;
+  font-weight: 600;
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+button:hover:not(:disabled) { background: var(--brand-d); }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+button.secondary { background: var(--bg-elev); color: var(--text); }
+button.secondary:hover:not(:disabled) { background: var(--border); }
+button.ghost { background: transparent; color: var(--muted); padding: 6px 10px; }
+button.ghost:hover:not(:disabled) { background: var(--bg-elev); }
+
+input {
+  font: inherit;
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+}
+input:focus { outline: 2px solid var(--brand); border-color: transparent; }
+
+.muted { color: var(--muted); }
+.error {
+  background: rgba(255, 93, 108, 0.12);
+  border: 1px solid var(--danger);
+  color: var(--danger);
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+.centered {
+  min-height: 60vh;
+  display: grid;
+  place-items: center;
+}
