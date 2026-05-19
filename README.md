@@ -72,10 +72,21 @@ the `matches` table. `verify_jwt = false` for it is already set in
    ```bash
    supabase secrets set FOOTBALL_API_KEY=your-football-data-token
    supabase functions deploy sync-fixtures
-   supabase functions invoke sync-fixtures      # load the schedule once
+   ```
+
+3. Trigger it once to load the schedule. `verify_jwt = false` is set for this
+   function, but the Supabase gateway still needs an `apikey`, so pass your
+   **anon** key:
+
+   ```bash
+   curl -i -X POST \
+     "https://YOUR-PROJECT.supabase.co/functions/v1/sync-fixtures" \
+     -H "Authorization: Bearer YOUR-ANON-KEY"
    ```
 
    It returns `{ "synced": N, ... }` and matches appear in the app.
+   (`supabase functions invoke` also works, but only on newer CLI versions —
+   the `curl` call is version-independent and is what the cron job uses.)
 
 ### Keep scores updating automatically
 
