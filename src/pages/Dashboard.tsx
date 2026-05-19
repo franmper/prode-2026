@@ -39,7 +39,7 @@ export function Dashboard() {
       setNewName('');
       if (data) navigate(`/pool/${data.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo crear el pozo');
+      setError(err instanceof Error ? err.message : 'No se pudo crear la liga');
     } finally {
       setBusy(false);
     }
@@ -57,7 +57,7 @@ export function Dashboard() {
       setJoinCode('');
       if (data) navigate(`/pool/${data.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo unir al pozo');
+      setError(err instanceof Error ? err.message : 'No se pudo unir a la liga');
     } finally {
       setBusy(false);
     }
@@ -70,12 +70,12 @@ export function Dashboard() {
       {error && <div className="error" style={{ marginBottom: 16 }}>{error}</div>}
 
       <div className="card">
-        <h2 style={{ marginTop: 0 }}>Tus pozos</h2>
+        <h2 style={{ marginTop: 0 }}>Tus ligas</h2>
         {loading ? (
           <p className="muted">Cargando…</p>
         ) : pools.length === 0 ? (
           <p className="muted">
-            Todavía no estás en ningún pozo. Creá uno o unite con un código.
+            Todavía no estás en ninguna liga. Creá una o unite con un código.
           </p>
         ) : (
           pools.map((p) => (
@@ -95,10 +95,10 @@ export function Dashboard() {
       </div>
 
       <div className="card">
-        <h3 style={{ marginTop: 0 }}>Crear un pozo</h3>
+        <h3 style={{ marginTop: 0 }}>Crear una liga</h3>
         <form className="row" onSubmit={createPool}>
           <input
-            placeholder="Nombre del pozo (ej. Mundial de la oficina)"
+            placeholder="Nombre de la liga (ej. Mundial de la oficina)"
             value={newName}
             maxLength={60}
             onChange={(e) => setNewName(e.target.value)}
@@ -111,7 +111,7 @@ export function Dashboard() {
       </div>
 
       <div className="card">
-        <h3 style={{ marginTop: 0 }}>Unirse a un pozo</h3>
+        <h3 style={{ marginTop: 0 }}>Unirse a una liga</h3>
         <form className="row" onSubmit={joinPool}>
           <input
             placeholder="Código de 6 letras"

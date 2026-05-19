@@ -66,8 +66,8 @@ export function PoolDetail() {
       <div className="app-shell">
         <TopBar />
         <div className="card">
-          <p>Pozo no encontrado o no sos miembro.</p>
-          <Link to="/">← Volver a tus pozos</Link>
+          <p>Liga no encontrada o no sos miembro.</p>
+          <Link to="/">← Volver a tus ligas</Link>
         </div>
       </div>
     );
@@ -95,7 +95,7 @@ export function PoolDetail() {
               className="secondary"
               onClick={syncFixtures}
               disabled={syncing}
-              title="Solo el dueño del pozo: actualiza partidos y resultados desde la API"
+              title="Solo el dueño de la liga: actualiza partidos y resultados desde la API"
             >
               {syncing ? 'Sincronizando…' : 'Sincronizar fixture'}
             </button>
