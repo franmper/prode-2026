@@ -31,9 +31,9 @@ export function TopBar() {
         </Link>
       </h1>
       <div className="row">
-        {name && <span className="who muted">Hi, {name}</span>}
+        {name && <span className="who muted">Hola, {name}</span>}
         <button className="ghost" onClick={onLogout}>
-          Log out
+          Cerrar sesión
         </button>
       </div>
     </div>

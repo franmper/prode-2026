@@ -126,7 +126,7 @@ declare
   v_pool public.pools;
 begin
   if auth.uid() is null then
-    raise exception 'Not authenticated';
+    raise exception 'No autenticado';
   end if;
 
   -- 6-char A-Z/2-9 code (no ambiguous 0/O/1/I), retried until unique
@@ -160,7 +160,7 @@ declare
   v_pool public.pools;
 begin
   if auth.uid() is null then
-    raise exception 'Not authenticated';
+    raise exception 'No autenticado';
   end if;
 
   select * into v_pool
@@ -168,7 +168,7 @@ begin
   where join_code = upper(trim(p_code));
 
   if v_pool.id is null then
-    raise exception 'No pool found with that code';
+    raise exception 'No se encontró ningún pozo con ese código';
   end if;
 
   insert into public.pool_members (pool_id, user_id)
@@ -199,7 +199,7 @@ begin
     select 1 from public.pool_members
     where pool_id = p_pool_id and user_id = auth.uid()
   ) then
-    raise exception 'Not a member of this pool';
+    raise exception 'No sos miembro de este pozo';
   end if;
 
   return query

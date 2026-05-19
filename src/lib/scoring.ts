@@ -27,7 +27,7 @@ export function isLocked(kickoffAt: string, status: string): boolean {
 }
 
 export function formatKickoff(iso: string): string {
-  return new Date(iso).toLocaleString(undefined, {
+  return new Date(iso).toLocaleString('es', {
     weekday: 'short',
     month: 'short',
     day: 'numeric',

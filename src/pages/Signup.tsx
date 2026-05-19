@@ -15,16 +15,16 @@ export function Signup() {
     e.preventDefault();
     setError('');
     if (password.length < 6) {
-      setError('Password must be at least 6 characters');
+      setError('La contraseña debe tener al menos 6 caracteres');
       return;
     }
     setBusy(true);
     try {
       await signUp(email.trim(), password, displayName);
-      // Email confirmation is disabled, so we're logged in immediately.
+      // La confirmación por email está desactivada: queda logueado al instante.
       navigate('/', { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not sign up');
+      setError(err instanceof Error ? err.message : 'No se pudo crear la cuenta');
     } finally {
       setBusy(false);
     }
@@ -35,18 +35,18 @@ export function Signup() {
       <div className="brand">
         Prode <span className="ball">⚽</span> 2026
       </div>
-      <p className="tagline muted">Predict the World Cup. Beat your friends.</p>
+      <p className="tagline muted">Pronosticá el Mundial. Ganales a tus amigos.</p>
 
       <form className="card stack" onSubmit={onSubmit}>
-        <h2 style={{ margin: 0, fontSize: 18 }}>Create account</h2>
+        <h2 style={{ margin: 0, fontSize: 18 }}>Crear cuenta</h2>
         {error && <div className="error">{error}</div>}
         <div className="field">
-          <label htmlFor="name">Display name</label>
+          <label htmlFor="name">Nombre para mostrar</label>
           <input
             id="name"
             type="text"
             maxLength={40}
-            placeholder="How you'll show on the leaderboard"
+            placeholder="Cómo vas a aparecer en la tabla"
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
             required
@@ -64,7 +64,7 @@ export function Signup() {
           />
         </div>
         <div className="field">
-          <label htmlFor="password">Password</label>
+          <label htmlFor="password">Contraseña</label>
           <input
             id="password"
             type="password"
@@ -75,12 +75,12 @@ export function Signup() {
           />
         </div>
         <button className="full" type="submit" disabled={busy}>
-          {busy ? 'Creating…' : 'Sign up'}
+          {busy ? 'Creando…' : 'Registrarse'}
         </button>
       </form>
 
       <p className="muted" style={{ textAlign: 'center', fontSize: 14 }}>
-        Already have an account? <Link to="/login">Log in</Link>
+        ¿Ya tenés cuenta? <Link to="/login">Iniciá sesión</Link>
       </p>
     </div>
   );

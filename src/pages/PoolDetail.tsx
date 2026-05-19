@@ -35,14 +35,14 @@ export function PoolDetail() {
     setTimeout(() => setCopied(false), 1500);
   }
 
-  if (loading) return <div className="centered muted">Loading…</div>;
+  if (loading) return <div className="centered muted">Cargando…</div>;
   if (!pool) {
     return (
       <div className="app-shell">
         <TopBar />
         <div className="card">
-          <p>Pool not found or you're not a member.</p>
-          <Link to="/">← Back to your pools</Link>
+          <p>Pozo no encontrado o no sos miembro.</p>
+          <Link to="/">← Volver a tus pozos</Link>
         </div>
       </div>
     );
@@ -56,14 +56,14 @@ export function PoolDetail() {
         <div>
           <h2 style={{ margin: '0 0 4px' }}>{pool.name}</h2>
           <span className="muted" style={{ fontSize: 13 }}>
-            Invite friends with code{' '}
+            Invitá amigos con el código{' '}
             <span className="code" style={{ color: 'var(--accent)' }}>
               {pool.join_code}
             </span>
           </span>
         </div>
         <button className="secondary" onClick={copyCode}>
-          {copied ? 'Copied!' : 'Copy code'}
+          {copied ? '¡Copiado!' : 'Copiar código'}
         </button>
       </div>
 
@@ -72,13 +72,13 @@ export function PoolDetail() {
           className={tab === 'matches' ? 'active' : ''}
           onClick={() => setTab('matches')}
         >
-          Matches & Picks
+          Partidos y Pronósticos
         </button>
         <button
           className={tab === 'board' ? 'active' : ''}
           onClick={() => setTab('board')}
         >
-          Leaderboard
+          Posiciones
         </button>
       </div>
 

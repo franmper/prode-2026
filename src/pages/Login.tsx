@@ -18,7 +18,7 @@ export function Login() {
       await signIn(email.trim(), password);
       navigate('/', { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not sign in');
+      setError(err instanceof Error ? err.message : 'No se pudo iniciar sesión');
     } finally {
       setBusy(false);
     }
@@ -29,10 +29,10 @@ export function Login() {
       <div className="brand">
         Prode <span className="ball">⚽</span> 2026
       </div>
-      <p className="tagline muted">Predict the World Cup. Beat your friends.</p>
+      <p className="tagline muted">Pronosticá el Mundial. Ganales a tus amigos.</p>
 
       <form className="card stack" onSubmit={onSubmit}>
-        <h2 style={{ margin: 0, fontSize: 18 }}>Log in</h2>
+        <h2 style={{ margin: 0, fontSize: 18 }}>Iniciar sesión</h2>
         {error && <div className="error">{error}</div>}
         <div className="field">
           <label htmlFor="email">Email</label>
@@ -46,7 +46,7 @@ export function Login() {
           />
         </div>
         <div className="field">
-          <label htmlFor="password">Password</label>
+          <label htmlFor="password">Contraseña</label>
           <input
             id="password"
             type="password"
@@ -57,12 +57,12 @@ export function Login() {
           />
         </div>
         <button className="full" type="submit" disabled={busy}>
-          {busy ? 'Signing in…' : 'Log in'}
+          {busy ? 'Iniciando sesión…' : 'Iniciar sesión'}
         </button>
       </form>
 
       <p className="muted" style={{ textAlign: 'center', fontSize: 14 }}>
-        No account? <Link to="/signup">Create one</Link>
+        ¿No tenés cuenta? <Link to="/signup">Creá una</Link>
       </p>
     </div>
   );

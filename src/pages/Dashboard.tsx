@@ -39,7 +39,7 @@ export function Dashboard() {
       setNewName('');
       if (data) navigate(`/pool/${data.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not create pool');
+      setError(err instanceof Error ? err.message : 'No se pudo crear el pozo');
     } finally {
       setBusy(false);
     }
@@ -57,7 +57,7 @@ export function Dashboard() {
       setJoinCode('');
       if (data) navigate(`/pool/${data.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not join pool');
+      setError(err instanceof Error ? err.message : 'No se pudo unir al pozo');
     } finally {
       setBusy(false);
     }
@@ -70,12 +70,12 @@ export function Dashboard() {
       {error && <div className="error" style={{ marginBottom: 16 }}>{error}</div>}
 
       <div className="card">
-        <h2 style={{ marginTop: 0 }}>Your pools</h2>
+        <h2 style={{ marginTop: 0 }}>Tus pozos</h2>
         {loading ? (
-          <p className="muted">Loading…</p>
+          <p className="muted">Cargando…</p>
         ) : pools.length === 0 ? (
           <p className="muted">
-            You're not in any pool yet. Create one or join with a code.
+            Todavía no estás en ningún pozo. Creá uno o unite con un código.
           </p>
         ) : (
           pools.map((p) => (
@@ -95,26 +95,26 @@ export function Dashboard() {
       </div>
 
       <div className="card">
-        <h3 style={{ marginTop: 0 }}>Create a pool</h3>
+        <h3 style={{ marginTop: 0 }}>Crear un pozo</h3>
         <form className="row" onSubmit={createPool}>
           <input
-            placeholder="Pool name (e.g. Office World Cup)"
+            placeholder="Nombre del pozo (ej. Mundial de la oficina)"
             value={newName}
             maxLength={60}
             onChange={(e) => setNewName(e.target.value)}
             required
           />
           <button type="submit" disabled={busy}>
-            Create
+            Crear
           </button>
         </form>
       </div>
 
       <div className="card">
-        <h3 style={{ marginTop: 0 }}>Join a pool</h3>
+        <h3 style={{ marginTop: 0 }}>Unirse a un pozo</h3>
         <form className="row" onSubmit={joinPool}>
           <input
-            placeholder="6-letter code"
+            placeholder="Código de 6 letras"
             value={joinCode}
             maxLength={6}
             style={{ textTransform: 'uppercase', letterSpacing: 2 }}
@@ -122,7 +122,7 @@ export function Dashboard() {
             required
           />
           <button className="secondary" type="submit" disabled={busy}>
-            Join
+            Unirse
           </button>
         </form>
       </div>

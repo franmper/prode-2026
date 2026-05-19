@@ -20,7 +20,7 @@ export function Leaderboard({ poolId }: { poolId: string }) {
 
   useEffect(() => {
     load();
-    // Recompute when match scores change.
+    // Recalcula cuando cambian los resultados de los partidos.
     const channel = supabase
       .channel(`board-${poolId}`)
       .on(
@@ -34,7 +34,7 @@ export function Leaderboard({ poolId }: { poolId: string }) {
     };
   }, [load, poolId]);
 
-  if (loading) return <p className="muted">Loading leaderboard…</p>;
+  if (loading) return <p className="muted">Cargando posiciones…</p>;
   if (error) return <div className="error">{error}</div>;
 
   return (
@@ -42,11 +42,11 @@ export function Leaderboard({ poolId }: { poolId: string }) {
       <thead>
         <tr>
           <th className="rank">#</th>
-          <th>Player</th>
+          <th>Jugador</th>
           <th className="num">Pts</th>
-          <th className="num">Exact</th>
-          <th className="num">Result</th>
-          <th className="num">Picks</th>
+          <th className="num">Exactos</th>
+          <th className="num">Resultado</th>
+          <th className="num">Pronósticos</th>
         </tr>
       </thead>
       <tbody>

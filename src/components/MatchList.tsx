@@ -30,7 +30,7 @@ export function MatchList() {
 
   useEffect(() => {
     load();
-    // Live-refresh when scores change (Edge Function sync writes to matches).
+    // Refresca en vivo cuando cambian los resultados (los escribe la Edge Function).
     const channel = supabase
       .channel('matches-changes')
       .on(
@@ -59,7 +59,7 @@ export function MatchList() {
     const home = Number(d?.home ?? existing?.predicted_home);
     const away = Number(d?.away ?? existing?.predicted_away);
     if (Number.isNaN(home) || Number.isNaN(away)) {
-      setError('Enter both scores first');
+      setError('Ingresá ambos resultados primero');
       return;
     }
     setSavingId(match.id);
@@ -86,12 +86,12 @@ export function MatchList() {
     setSavingId(null);
   }
 
-  if (loading) return <p className="muted">Loading matches…</p>;
+  if (loading) return <p className="muted">Cargando partidos…</p>;
   if (matches.length === 0) {
     return (
       <p className="muted">
-        No matches yet. Run the fixtures sync (see README) to load the World Cup
-        schedule.
+        Todavía no hay partidos. Ejecutá la sincronización del fixture (ver
+        README) para cargar el calendario del Mundial.
       </p>
     );
   }
@@ -120,12 +120,12 @@ export function MatchList() {
           <div key={m.id} className={`match${locked ? ' locked' : ''}`}>
             <div className="meta">
               <span>
-                {[m.stage, m.group_name].filter(Boolean).join(' · ') || 'Match'}
+                {[m.stage, m.group_name].filter(Boolean).join(' · ') || 'Partido'}
                 {' — '}
                 {formatKickoff(m.kickoff_at)}
               </span>
               <span>
-                {m.status === 'live' && <span className="pill live">LIVE</span>}
+                {m.status === 'live' && <span className="pill live">EN VIVO</span>}
                 {m.status === 'finished' && (
                   <span className="pill done">FINAL</span>
                 )}
@@ -148,13 +148,13 @@ export function MatchList() {
                 <div className="score-in">
                   <input
                     inputMode="numeric"
-                    aria-label={`${m.home_team} score`}
+                    aria-label={`Goles de ${m.home_team}`}
                     value={homeVal}
                     onChange={(e) => setField(m.id, 'home', e.target.value)}
                   />
                   <input
                     inputMode="numeric"
-                    aria-label={`${m.away_team} score`}
+                    aria-label={`Goles de ${m.away_team}`}
                     value={awayVal}
                     onChange={(e) => setField(m.id, 'away', e.target.value)}
                   />
@@ -167,13 +167,19 @@ export function MatchList() {
             {!locked && (
               <div className="spread" style={{ marginTop: 10 }}>
                 <span className="muted" style={{ fontSize: 12 }}>
-                  {pred ? 'Your pick saved — editable until kickoff' : 'Not predicted yet'}
+                  {pred
+                    ? 'Pronóstico guardado — editable hasta el inicio'
+                    : 'Sin pronóstico aún'}
                 </span>
                 <button
                   onClick={() => save(m)}
                   disabled={savingId === m.id || (!dirty && !!pred)}
                 >
-                  {savingId === m.id ? 'Saving…' : pred ? 'Update' : 'Save pick'}
+                  {savingId === m.id
+                    ? 'Guardando…'
+                    : pred
+                      ? 'Actualizar'
+                      : 'Guardar pronóstico'}
                 </button>
               </div>
             )}
