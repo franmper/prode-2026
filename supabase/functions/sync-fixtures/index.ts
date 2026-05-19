@@ -46,16 +46,34 @@ function mapStatus(s: FdStatus): 'scheduled' | 'live' | 'finished' {
   return 'scheduled';
 }
 
-Deno.serve(async () => {
+// CORS so the browser (owner "Sincronizar fixture" button) can call this.
+// curl/pg_cron don't need it but it's harmless for them.
+const cors = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers':
+    'authorization, x-client-info, apikey, content-type',
+};
+
+function json(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...cors, 'Content-Type': 'application/json' },
+  });
+}
+
+Deno.serve(async (req) => {
+  // Browser preflight
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: cors });
+  }
+
   const apiKey = Deno.env.get('FOOTBALL_API_KEY');
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
   if (!apiKey || !supabaseUrl || !serviceKey) {
-    return new Response(
-      JSON.stringify({ error: 'Missing FOOTBALL_API_KEY or Supabase env' }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } },
-    );
+    return json({ error: 'Missing FOOTBALL_API_KEY or Supabase env' }, 500);
   }
 
   const res = await fetch(
@@ -64,9 +82,9 @@ Deno.serve(async () => {
   );
 
   if (!res.ok) {
-    return new Response(
-      JSON.stringify({ error: `Football API ${res.status}`, body: await res.text() }),
-      { status: 502, headers: { 'Content-Type': 'application/json' } },
+    return json(
+      { error: `Football API ${res.status}`, body: await res.text() },
+      502,
     );
   }
 
@@ -94,14 +112,8 @@ Deno.serve(async () => {
     .upsert(rows, { onConflict: 'api_id' });
 
   if (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return json({ error: error.message }, 500);
   }
 
-  return new Response(
-    JSON.stringify({ synced: rows.length, total_from_api: matches.length }),
-    { status: 200, headers: { 'Content-Type': 'application/json' } },
-  );
+  return json({ synced: rows.length, total_from_api: matches.length });
 });
