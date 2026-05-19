@@ -8,9 +8,21 @@ import {
   formatKickoff,
   roundLabel,
   groupLabel,
+  stageLabel,
   lockAt,
   formatDeadline,
 } from '../lib/scoring';
+
+// Phase display order; unknown stages get appended after these.
+const STAGE_ORDER = [
+  'GROUP_STAGE',
+  'LAST_32',
+  'LAST_16',
+  'QUARTER_FINALS',
+  'SEMI_FINALS',
+  'THIRD_PLACE',
+  'FINAL',
+];
 
 export function MatchList() {
   const { user } = useAuth();
@@ -62,6 +74,91 @@ export function MatchList() {
     setSavingId(null);
   }
 
+  const label = (m: Match, o: Outcome) =>
+    o === 'home' ? `Gana ${m.home_team}` : o === 'away' ? `Gana ${m.away_team}` : 'Empate';
+
+  function renderMatch(m: Match) {
+    const locked = isLocked(m, matches);
+    const pred = preds[m.id];
+    const finished = m.status === 'finished';
+    const pts = finished && pred
+      ? matchPoints(pred.predicted_outcome, m.home_score, m.away_score)
+      : null;
+    const options: Outcome[] = ['home', 'draw', 'away'];
+
+    return (
+      <div key={m.id} className={`match${locked ? ' locked' : ''}`}>
+        <div className="meta">
+          <span>
+            {roundLabel(m)}
+            {groupLabel(m.group_name) ? ` · ${groupLabel(m.group_name)}` : ''}
+            {' — '}
+            {formatKickoff(m.kickoff_at)}
+          </span>
+          <span>
+            {m.status === 'live' && <span className="pill live">EN VIVO</span>}
+            {finished && <span className="pill done">FINAL</span>}
+            {pts != null && (
+              <span className="pill pts" style={{ marginLeft: 6 }}>
+                +{pts}
+              </span>
+            )}
+          </span>
+        </div>
+
+        <div className="matchup">
+          <span className="team">{m.home_team}</span>
+          <span className="vs">
+            {locked ? `${m.home_score ?? '–'} : ${m.away_score ?? '–'}` : 'vs'}
+          </span>
+          <span className="team" style={{ textAlign: 'right' }}>
+            {m.away_team}
+          </span>
+        </div>
+
+        {locked ? (
+          <div className="muted" style={{ fontSize: 13, marginTop: 8 }}>
+            {pred ? (
+              <>
+                Tu pronóstico: <strong>{label(m, pred.predicted_outcome)}</strong>
+                {finished && (pts ? ' — ¡Acertaste! ✓' : ' — No acertaste ✗')}
+              </>
+            ) : (
+              'No pronosticaste este partido'
+            )}
+          </div>
+        ) : (
+          <>
+            <div className="outcomes">
+              {options.map((o) => (
+                <button
+                  key={o}
+                  className={
+                    'outcome-btn' +
+                    (pred?.predicted_outcome === o ? ' active' : '')
+                  }
+                  disabled={savingId === m.id}
+                  onClick={() => pick(m, o)}
+                >
+                  {label(m, o)}
+                </button>
+              ))}
+            </div>
+            <div className="muted" style={{ fontSize: 12, marginTop: 8 }}>
+              {savingId === m.id
+                ? 'Guardando…'
+                : pred
+                  ? 'Pronóstico guardado — podés cambiarlo'
+                  : 'Elegí un resultado'}
+              {' · Cierra: '}
+              {formatDeadline(lockAt(m, matches))} (ARG)
+            </div>
+          </>
+        )}
+      </div>
+    );
+  }
+
   if (loading) return <p className="muted">Cargando partidos…</p>;
   if (matches.length === 0) {
     return (
@@ -72,92 +169,51 @@ export function MatchList() {
     );
   }
 
-  const label = (m: Match, o: Outcome) =>
-    o === 'home' ? `Gana ${m.home_team}` : o === 'away' ? `Gana ${m.away_team}` : 'Empate';
+  // Group: phase -> (group stage only) grupo -> matches (kept kickoff-ordered).
+  const byStage = new Map<string, Match[]>();
+  for (const m of matches) {
+    const key = m.stage ?? '__none__';
+    (byStage.get(key) ?? byStage.set(key, []).get(key)!).push(m);
+  }
+  const stageKeys = [...byStage.keys()].sort((a, b) => {
+    const ia = STAGE_ORDER.indexOf(a);
+    const ib = STAGE_ORDER.indexOf(b);
+    return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+  });
 
   return (
     <div>
       {error && <div className="error" style={{ marginBottom: 12 }}>{error}</div>}
-      {matches.map((m) => {
-        const locked = isLocked(m, matches);
-        const pred = preds[m.id];
-        const finished = m.status === 'finished';
-        const pts = finished && pred
-          ? matchPoints(pred.predicted_outcome, m.home_score, m.away_score)
-          : null;
-        const options: Outcome[] = ['home', 'draw', 'away'];
+      {stageKeys.map((sk) => {
+        const stageMatches = byStage.get(sk)!;
+
+        if (sk === 'GROUP_STAGE') {
+          const byGroup = new Map<string, Match[]>();
+          for (const m of stageMatches) {
+            const g = m.group_name ?? '—';
+            (byGroup.get(g) ?? byGroup.set(g, []).get(g)!).push(m);
+          }
+          const groupKeys = [...byGroup.keys()].sort();
+          return (
+            <section key={sk}>
+              <h3 className="phase-title">{stageLabel('GROUP_STAGE')}</h3>
+              {groupKeys.map((gk) => (
+                <div key={gk}>
+                  <h4 className="group-title">{groupLabel(gk) ?? gk}</h4>
+                  {byGroup.get(gk)!.map(renderMatch)}
+                </div>
+              ))}
+            </section>
+          );
+        }
 
         return (
-          <div key={m.id} className={`match${locked ? ' locked' : ''}`}>
-            <div className="meta">
-              <span>
-                {roundLabel(m)}
-                {groupLabel(m.group_name) ? ` · ${groupLabel(m.group_name)}` : ''}
-                {' — '}
-                {formatKickoff(m.kickoff_at)}
-              </span>
-              <span>
-                {m.status === 'live' && <span className="pill live">EN VIVO</span>}
-                {finished && <span className="pill done">FINAL</span>}
-                {pts != null && (
-                  <span className="pill pts" style={{ marginLeft: 6 }}>
-                    +{pts}
-                  </span>
-                )}
-              </span>
-            </div>
-
-            <div className="matchup">
-              <span className="team">{m.home_team}</span>
-              <span className="vs">
-                {locked ? `${m.home_score ?? '–'} : ${m.away_score ?? '–'}` : 'vs'}
-              </span>
-              <span className="team" style={{ textAlign: 'right' }}>
-                {m.away_team}
-              </span>
-            </div>
-
-            {locked ? (
-              <div className="muted" style={{ fontSize: 13, marginTop: 8 }}>
-                {pred ? (
-                  <>
-                    Tu pronóstico: <strong>{label(m, pred.predicted_outcome)}</strong>
-                    {finished &&
-                      (pts ? ' — ¡Acertaste! ✓' : ' — No acertaste ✗')}
-                  </>
-                ) : (
-                  'No pronosticaste este partido'
-                )}
-              </div>
-            ) : (
-              <>
-                <div className="outcomes">
-                  {options.map((o) => (
-                    <button
-                      key={o}
-                      className={
-                        'outcome-btn' +
-                        (pred?.predicted_outcome === o ? ' active' : '')
-                      }
-                      disabled={savingId === m.id}
-                      onClick={() => pick(m, o)}
-                    >
-                      {label(m, o)}
-                    </button>
-                  ))}
-                </div>
-                <div className="muted" style={{ fontSize: 12, marginTop: 8 }}>
-                  {savingId === m.id
-                    ? 'Guardando…'
-                    : pred
-                      ? 'Pronóstico guardado — podés cambiarlo'
-                      : 'Elegí un resultado'}
-                  {' · Cierra: '}
-                  {formatDeadline(lockAt(m, matches))} (ARG)
-                </div>
-              </>
-            )}
-          </div>
+          <section key={sk}>
+            <h3 className="phase-title">
+              {sk === '__none__' ? 'Partidos' : stageLabel(sk)}
+            </h3>
+            {stageMatches.map(renderMatch)}
+          </section>
         );
       })}
     </div>

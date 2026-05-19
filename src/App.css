@@ -119,6 +119,23 @@
   border-color: var(--brand);
 }
 .match.locked { opacity: 0.85; }
+
+.phase-title {
+  margin: 22px 0 10px;
+  font-size: 17px;
+  color: var(--text);
+  border-bottom: 2px solid var(--brand);
+  padding-bottom: 6px;
+}
+section:first-of-type .phase-title { margin-top: 0; }
+.group-title {
+  margin: 14px 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
 .pill {
   font-size: 11px;
   padding: 2px 8px;
