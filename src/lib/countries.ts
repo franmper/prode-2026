@@ -88,6 +88,7 @@ const ES: Record<string, string> = {
   'burkina faso': 'Burkina Faso',
   'south africa': 'Sudáfrica',
   'cape verde': 'Cabo Verde',
+  'cape verde islands': 'Cabo Verde',
   'cabo verde': 'Cabo Verde',
   'dr congo': 'RD Congo',
   'congo dr': 'RD Congo',
