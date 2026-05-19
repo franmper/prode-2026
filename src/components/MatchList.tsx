@@ -7,6 +7,7 @@ import {
   isLocked,
   formatKickoff,
   roundLabel,
+  groupLabel,
   lockAt,
   formatDeadline,
 } from '../lib/scoring';
@@ -91,7 +92,7 @@ export function MatchList() {
             <div className="meta">
               <span>
                 {roundLabel(m)}
-                {m.group_name ? ` · ${m.group_name}` : ''}
+                {groupLabel(m.group_name) ? ` · ${groupLabel(m.group_name)}` : ''}
                 {' — '}
                 {formatKickoff(m.kickoff_at)}
               </span>

@@ -66,6 +66,7 @@ export function isLocked(match: Match, all: Match[]): boolean {
 
 const STAGE_ES: Record<string, string> = {
   GROUP_STAGE: 'Fase de grupos',
+  LAST_32: 'Dieciseisavos',
   LAST_16: 'Octavos',
   QUARTER_FINALS: 'Cuartos',
   SEMI_FINALS: 'Semifinal',
@@ -73,9 +74,27 @@ const STAGE_ES: Record<string, string> = {
   FINAL: 'Final',
 };
 
+// Fallback for unknown codes: "SOME_STAGE" -> "Some stage"
+function humanize(code: string): string {
+  const s = code.replace(/_/g, ' ').toLowerCase();
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+export function stageLabel(stage: string | null): string {
+  if (!stage) return 'Partido';
+  return STAGE_ES[stage] ?? humanize(stage);
+}
+
 export function roundLabel(m: Match): string {
   if (m.stage === 'GROUP_STAGE' && m.matchday != null) return `Fecha ${m.matchday}`;
-  return (m.stage && STAGE_ES[m.stage]) || m.stage || 'Partido';
+  return stageLabel(m.stage);
+}
+
+// "GROUP_J" / "Group J" / "GROUP_A" -> "Grupo J"
+export function groupLabel(group: string | null): string | null {
+  if (!group) return null;
+  const m = group.match(/^group[_\s]?([A-Za-z0-9]+)$/i);
+  return m ? `Grupo ${m[1].toUpperCase()}` : group;
 }
 
 export function formatKickoff(iso: string): string {
