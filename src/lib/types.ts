@@ -1,6 +1,9 @@
-// Shared domain types, mirroring the Supabase schema in db/schema.sql
+// Shared domain types, mirroring the Supabase schema in supabase/migrations/.
 
 export type MatchStatus = 'scheduled' | 'live' | 'finished';
+
+// 1-X-2 prediction: home win / draw / away win
+export type Outcome = 'home' | 'draw' | 'away';
 
 export interface Profile {
   id: string;
@@ -39,8 +42,7 @@ export interface Prediction {
   id: string;
   user_id: string;
   match_id: string;
-  predicted_home: number;
-  predicted_away: number;
+  predicted_outcome: Outcome;
   created_at: string;
   updated_at: string;
 }
@@ -50,7 +52,6 @@ export interface LeaderboardRow {
   user_id: string;
   display_name: string;
   points: number;
-  exact_count: number;
-  result_count: number;
+  correct_count: number;
   predictions_count: number;
 }

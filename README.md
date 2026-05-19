@@ -5,7 +5,8 @@ with a 6-letter code, predict every match score, and a live leaderboard ranks
 everyone. **No custom backend** — only this frontend plus Supabase (auth + DB)
 and one tiny Edge Function that syncs fixtures.
 
-**Scoring:** exact score = **3 pts** · correct result only = **1 pt** · wrong = 0.
+**Predicción:** 1‑X‑2 — Gana Local / Empate / Gana Visitante.
+**Puntaje:** resultado correcto = **1 pt** · incorrecto = 0.
 
 The database lives in version-controlled **migrations** (`supabase/migrations/`),
 which makes the optional [Supabase Branching](#7-supabase-branching-optional-paid)
@@ -174,5 +175,6 @@ src/pages/                          Login, Signup, Dashboard, PoolDetail
 src/components/                     TopBar, MatchList, Leaderboard, ProtectedRoute
 ```
 
-Scoring lives in two places that must stay in sync: `public.match_points()` in
-the init migration and `matchPoints()` in `src/lib/scoring.ts`.
+Scoring lives in two places that must stay in sync: `public.match_points()` /
+`match_outcome()` in the `outcome_predictions` migration and `matchPoints()` /
+`actualOutcome()` in `src/lib/scoring.ts`.

@@ -44,8 +44,7 @@ export function Leaderboard({ poolId }: { poolId: string }) {
           <th className="rank">#</th>
           <th>Jugador</th>
           <th className="num">Pts</th>
-          <th className="num">Exactos</th>
-          <th className="num">Resultado</th>
+          <th className="num">Aciertos</th>
           <th className="num">Pronósticos</th>
         </tr>
       </thead>
@@ -57,8 +56,7 @@ export function Leaderboard({ poolId }: { poolId: string }) {
             <td className="num">
               <strong>{r.points}</strong>
             </td>
-            <td className="num">{r.exact_count}</td>
-            <td className="num">{r.result_count}</td>
+            <td className="num">{r.correct_count}</td>
             <td className="num">{r.predictions_count}</td>
           </tr>
         ))}

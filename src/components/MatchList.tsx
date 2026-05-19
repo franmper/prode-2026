@@ -1,16 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import type { Match, Prediction } from '../lib/types';
+import type { Match, Prediction, Outcome } from '../lib/types';
 import { matchPoints, isLocked, formatKickoff } from '../lib/scoring';
-
-type Draft = Record<string, { home: string; away: string }>;
 
 export function MatchList() {
   const { user } = useAuth();
   const [matches, setMatches] = useState<Match[]>([]);
   const [preds, setPreds] = useState<Record<string, Prediction>>({});
-  const [draft, setDraft] = useState<Draft>({});
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [error, setError] = useState('');
@@ -44,45 +41,16 @@ export function MatchList() {
     };
   }, [load]);
 
-  function setField(id: string, side: 'home' | 'away', value: string) {
-    const v = value.replace(/[^0-9]/g, '').slice(0, 2);
-    setDraft((d) => {
-      const prev = d[id] ?? { home: '', away: '' };
-      return { ...d, [id]: { ...prev, [side]: v } };
-    });
-  }
-
-  async function save(match: Match) {
-    if (!user) return;
-    const existing = preds[match.id];
-    const d = draft[match.id];
-    const home = Number(d?.home ?? existing?.predicted_home);
-    const away = Number(d?.away ?? existing?.predicted_away);
-    if (Number.isNaN(home) || Number.isNaN(away)) {
-      setError('Ingresá ambos resultados primero');
-      return;
-    }
+  async function pick(match: Match, outcome: Outcome) {
+    if (!user || savingId) return;
     setSavingId(match.id);
     setError('');
     const { error } = await supabase.from('predictions').upsert(
-      {
-        user_id: user.id,
-        match_id: match.id,
-        predicted_home: home,
-        predicted_away: away,
-      },
+      { user_id: user.id, match_id: match.id, predicted_outcome: outcome },
       { onConflict: 'user_id,match_id' },
     );
-    if (error) {
-      setError(error.message);
-    } else {
-      await load();
-      setDraft((dd) => {
-        const next = { ...dd };
-        delete next[match.id];
-        return next;
-      });
-    }
+    if (error) setError(error.message);
+    else await load();
     setSavingId(null);
   }
 
@@ -96,25 +64,20 @@ export function MatchList() {
     );
   }
 
+  const label = (m: Match, o: Outcome) =>
+    o === 'home' ? `Gana ${m.home_team}` : o === 'away' ? `Gana ${m.away_team}` : 'Empate';
+
   return (
     <div>
       {error && <div className="error" style={{ marginBottom: 12 }}>{error}</div>}
       {matches.map((m) => {
         const locked = isLocked(m.kickoff_at, m.status);
         const pred = preds[m.id];
-        const d = draft[m.id];
-        const homeVal = d?.home ?? pred?.predicted_home?.toString() ?? '';
-        const awayVal = d?.away ?? pred?.predicted_away?.toString() ?? '';
-        const dirty = !!d && (d.home !== '' || d.away !== '');
-        const pts =
-          m.status === 'finished' && pred
-            ? matchPoints(
-                pred.predicted_home,
-                pred.predicted_away,
-                m.home_score,
-                m.away_score,
-              )
-            : null;
+        const finished = m.status === 'finished';
+        const pts = finished && pred
+          ? matchPoints(pred.predicted_outcome, m.home_score, m.away_score)
+          : null;
+        const options: Outcome[] = ['home', 'draw', 'away'];
 
         return (
           <div key={m.id} className={`match${locked ? ' locked' : ''}`}>
@@ -126,9 +89,7 @@ export function MatchList() {
               </span>
               <span>
                 {m.status === 'live' && <span className="pill live">EN VIVO</span>}
-                {m.status === 'finished' && (
-                  <span className="pill done">FINAL</span>
-                )}
+                {finished && <span className="pill done">FINAL</span>}
                 {pts != null && (
                   <span className="pill pts" style={{ marginLeft: 6 }}>
                     +{pts}
@@ -137,51 +98,53 @@ export function MatchList() {
               </span>
             </div>
 
-            <div className="teams">
-              <span className="team home">{m.home_team}</span>
-
-              {locked ? (
-                <div className="final">
-                  {m.home_score ?? '–'} : {m.away_score ?? '–'}
-                </div>
-              ) : (
-                <div className="score-in">
-                  <input
-                    inputMode="numeric"
-                    aria-label={`Goles de ${m.home_team}`}
-                    value={homeVal}
-                    onChange={(e) => setField(m.id, 'home', e.target.value)}
-                  />
-                  <input
-                    inputMode="numeric"
-                    aria-label={`Goles de ${m.away_team}`}
-                    value={awayVal}
-                    onChange={(e) => setField(m.id, 'away', e.target.value)}
-                  />
-                </div>
-              )}
-
-              <span className="team away">{m.away_team}</span>
+            <div className="matchup">
+              <span className="team">{m.home_team}</span>
+              <span className="vs">
+                {locked ? `${m.home_score ?? '–'} : ${m.away_score ?? '–'}` : 'vs'}
+              </span>
+              <span className="team" style={{ textAlign: 'right' }}>
+                {m.away_team}
+              </span>
             </div>
 
-            {!locked && (
-              <div className="spread" style={{ marginTop: 10 }}>
-                <span className="muted" style={{ fontSize: 12 }}>
-                  {pred
-                    ? 'Pronóstico guardado — editable hasta el inicio'
-                    : 'Sin pronóstico aún'}
-                </span>
-                <button
-                  onClick={() => save(m)}
-                  disabled={savingId === m.id || (!dirty && !!pred)}
-                >
+            {locked ? (
+              <div className="muted" style={{ fontSize: 13, marginTop: 8 }}>
+                {pred ? (
+                  <>
+                    Tu pronóstico: <strong>{label(m, pred.predicted_outcome)}</strong>
+                    {finished &&
+                      (pts ? ' — ¡Acertaste! ✓' : ' — No acertaste ✗')}
+                  </>
+                ) : (
+                  'No pronosticaste este partido'
+                )}
+              </div>
+            ) : (
+              <>
+                <div className="outcomes">
+                  {options.map((o) => (
+                    <button
+                      key={o}
+                      className={
+                        'outcome-btn' +
+                        (pred?.predicted_outcome === o ? ' active' : '')
+                      }
+                      disabled={savingId === m.id}
+                      onClick={() => pick(m, o)}
+                    >
+                      {label(m, o)}
+                    </button>
+                  ))}
+                </div>
+                <div className="muted" style={{ fontSize: 12, marginTop: 8 }}>
                   {savingId === m.id
                     ? 'Guardando…'
                     : pred
-                      ? 'Actualizar'
-                      : 'Guardar pronóstico'}
-                </button>
-              </div>
+                      ? 'Pronóstico guardado — editable hasta el inicio'
+                      : 'Elegí un resultado'}
+                </div>
+              </>
             )}
           </div>
         );

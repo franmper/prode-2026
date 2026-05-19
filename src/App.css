@@ -84,28 +84,39 @@
   display: flex;
   justify-content: space-between;
 }
-.match .teams {
+.match .matchup {
   display: grid;
-  grid-template-columns: 1fr 76px 1fr;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 .match .team { font-weight: 600; }
-.match .team.home { text-align: right; }
-.match .score-in {
-  display: flex;
-  gap: 6px;
-  justify-content: center;
-}
-.match .score-in input {
-  width: 44px;
-  text-align: center;
-  padding: 8px 4px;
-}
-.match .final {
-  text-align: center;
+.match .vs {
   font-weight: 800;
-  font-size: 18px;
+  font-size: 16px;
+  color: var(--muted);
+  min-width: 56px;
+  text-align: center;
+}
+.match .outcomes {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  margin-top: 12px;
+}
+.match .outcome-btn {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 10px 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.match .outcome-btn:hover:not(:disabled) { border-color: var(--brand); }
+.match .outcome-btn.active {
+  background: var(--brand);
+  color: #04130d;
+  border-color: var(--brand);
 }
 .match.locked { opacity: 0.85; }
 .pill {
