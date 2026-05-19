@@ -30,6 +30,7 @@ export interface Match {
   api_id: number | null;
   stage: string | null;
   group_name: string | null;
+  matchday: number | null;
   home_team: string;
   away_team: string;
   kickoff_at: string;

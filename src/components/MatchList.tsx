@@ -2,7 +2,14 @@ import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import type { Match, Prediction, Outcome } from '../lib/types';
-import { matchPoints, isLocked, formatKickoff } from '../lib/scoring';
+import {
+  matchPoints,
+  isLocked,
+  formatKickoff,
+  roundLabel,
+  lockAt,
+  formatDeadline,
+} from '../lib/scoring';
 
 export function MatchList() {
   const { user } = useAuth();
@@ -71,7 +78,7 @@ export function MatchList() {
     <div>
       {error && <div className="error" style={{ marginBottom: 12 }}>{error}</div>}
       {matches.map((m) => {
-        const locked = isLocked(m.kickoff_at, m.status);
+        const locked = isLocked(m, matches);
         const pred = preds[m.id];
         const finished = m.status === 'finished';
         const pts = finished && pred
@@ -83,7 +90,8 @@ export function MatchList() {
           <div key={m.id} className={`match${locked ? ' locked' : ''}`}>
             <div className="meta">
               <span>
-                {[m.stage, m.group_name].filter(Boolean).join(' · ') || 'Partido'}
+                {roundLabel(m)}
+                {m.group_name ? ` · ${m.group_name}` : ''}
                 {' — '}
                 {formatKickoff(m.kickoff_at)}
               </span>
@@ -141,8 +149,10 @@ export function MatchList() {
                   {savingId === m.id
                     ? 'Guardando…'
                     : pred
-                      ? 'Pronóstico guardado — editable hasta el inicio'
+                      ? 'Pronóstico guardado — podés cambiarlo'
                       : 'Elegí un resultado'}
+                  {' · Cierra: '}
+                  {formatDeadline(lockAt(m, matches))} (ARG)
                 </div>
               </>
             )}

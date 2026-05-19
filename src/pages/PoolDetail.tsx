@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 import type { Pool } from '../lib/types';
 import { TopBar } from '../components/TopBar';
 import { MatchList } from '../components/MatchList';
@@ -10,10 +11,13 @@ type Tab = 'matches' | 'board';
 
 export function PoolDetail() {
   const { poolId } = useParams<{ poolId: string }>();
+  const { user } = useAuth();
   const [pool, setPool] = useState<Pool | null>(null);
   const [tab, setTab] = useState<Tab>('matches');
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMsg, setSyncMsg] = useState('');
 
   useEffect(() => {
     if (!poolId) return;
@@ -35,6 +39,27 @@ export function PoolDetail() {
     setTimeout(() => setCopied(false), 1500);
   }
 
+  async function syncFixtures() {
+    setSyncing(true);
+    setSyncMsg('');
+    const { data, error } = await supabase.functions.invoke('sync-fixtures');
+    if (error) {
+      // The function returns its own JSON error body on non-2xx.
+      let detail = error.message;
+      try {
+        const body = await (error as { context?: Response }).context?.json();
+        if (body?.error) detail = body.error;
+      } catch {
+        /* keep generic message */
+      }
+      setSyncMsg(`Error al sincronizar: ${detail}`);
+    } else {
+      setSyncMsg(`Fixture sincronizado: ${data?.synced ?? 0} partidos.`);
+      // MatchList/Leaderboard auto-refresh via the matches realtime subscription.
+    }
+    setSyncing(false);
+  }
+
   if (loading) return <div className="centered muted">Cargando…</div>;
   if (!pool) {
     return (
@@ -47,6 +72,8 @@ export function PoolDetail() {
       </div>
     );
   }
+
+  const isOwner = !!user && user.id === pool.owner_id;
 
   return (
     <div className="app-shell">
@@ -62,10 +89,31 @@ export function PoolDetail() {
             </span>
           </span>
         </div>
-        <button className="secondary" onClick={copyCode}>
-          {copied ? '¡Copiado!' : 'Copiar código'}
-        </button>
+        <div className="row">
+          {isOwner && (
+            <button
+              className="secondary"
+              onClick={syncFixtures}
+              disabled={syncing}
+              title="Solo el dueño del pozo: actualiza partidos y resultados desde la API"
+            >
+              {syncing ? 'Sincronizando…' : 'Sincronizar fixture'}
+            </button>
+          )}
+          <button className="secondary" onClick={copyCode}>
+            {copied ? '¡Copiado!' : 'Copiar código'}
+          </button>
+        </div>
       </div>
+
+      {syncMsg && (
+        <div
+          className={syncMsg.startsWith('Error') ? 'error' : 'card'}
+          style={{ marginBottom: 16, fontSize: 14 }}
+        >
+          {syncMsg}
+        </div>
+      )}
 
       <div className="tabs">
         <button

@@ -34,6 +34,7 @@ interface FdMatch {
   status: FdStatus;
   stage: string | null;
   group: string | null;
+  matchday: number | null;
   homeTeam: { name: string | null };
   awayTeam: { name: string | null };
   score: { fullTime: { home: number | null; away: number | null } };
@@ -78,6 +79,7 @@ Deno.serve(async () => {
       api_id: m.id,
       stage: m.stage,
       group_name: m.group,
+      matchday: m.matchday ?? null,
       home_team: m.homeTeam.name,
       away_team: m.awayTeam.name,
       kickoff_at: m.utcDate,

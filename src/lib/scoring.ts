@@ -1,7 +1,11 @@
-// Mirror of public.match_points() / match_outcome() in the SQL migrations.
+// Mirrors the SQL: match_points/match_outcome and the round-deadline logic
+// (round_first_kickoff / match_lock_at) from the migrations.
 // 1-X-2: correct outcome = 1 pt, wrong = 0.
 
-import type { Outcome } from './types';
+import type { Match, Outcome } from './types';
+
+// Argentina is UTC-3 year-round (no DST), so "midnight ARG" == 03:00 UTC.
+const ARG_TZ = 'America/Argentina/Buenos_Aires';
 
 export function actualOutcome(
   home: number | null,
@@ -23,16 +27,76 @@ export function matchPoints(
   return predicted === actual ? 1 : 0;
 }
 
-export function isLocked(kickoffAt: string, status: string): boolean {
-  return status !== 'scheduled' || new Date(kickoffAt).getTime() <= Date.now();
+// First kickoff of the round this match belongs to.
+// Group stage: earliest match sharing the same matchday (Fecha).
+// Knockouts: the match itself (rolling, per-match).
+function roundFirstKickoff(match: Match, all: Match[]): string {
+  if (match.stage === 'GROUP_STAGE' && match.matchday != null) {
+    let first = match.kickoff_at;
+    for (const x of all) {
+      if (
+        x.stage === 'GROUP_STAGE' &&
+        x.matchday === match.matchday &&
+        x.kickoff_at < first
+      ) {
+        first = x.kickoff_at;
+      }
+    }
+    return first;
+  }
+  return match.kickoff_at;
+}
+
+// Predictions lock at midnight (ARG) of the day the round starts —
+// i.e. you can edit until 23:59 ARG the day before.
+export function lockAt(match: Match, all: Match[]): Date {
+  const first = new Date(roundFirstKickoff(match, all));
+  const argDay = new Intl.DateTimeFormat('en-CA', {
+    timeZone: ARG_TZ,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(first); // e.g. "2026-06-15"
+  return new Date(`${argDay}T03:00:00.000Z`); // 00:00 ARG of that day
+}
+
+export function isLocked(match: Match, all: Match[]): boolean {
+  return match.status !== 'scheduled' || Date.now() >= lockAt(match, all).getTime();
+}
+
+const STAGE_ES: Record<string, string> = {
+  GROUP_STAGE: 'Fase de grupos',
+  LAST_16: 'Octavos',
+  QUARTER_FINALS: 'Cuartos',
+  SEMI_FINALS: 'Semifinal',
+  THIRD_PLACE: 'Tercer puesto',
+  FINAL: 'Final',
+};
+
+export function roundLabel(m: Match): string {
+  if (m.stage === 'GROUP_STAGE' && m.matchday != null) return `Fecha ${m.matchday}`;
+  return (m.stage && STAGE_ES[m.stage]) || m.stage || 'Partido';
 }
 
 export function formatKickoff(iso: string): string {
-  return new Date(iso).toLocaleString('es', {
+  return new Date(iso).toLocaleString('es-AR', {
+    timeZone: ARG_TZ,
     weekday: 'short',
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
   });
+}
+
+// Show the deadline the way users think of it: 23:59 the day before.
+export function formatDeadline(d: Date): string {
+  return new Intl.DateTimeFormat('es-AR', {
+    timeZone: ARG_TZ,
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(d.getTime() - 60_000));
 }

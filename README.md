@@ -158,7 +158,9 @@ Per-branch notes:
 | Fixtures sync | `supabase/functions/sync-fixtures` | Football API → `matches` |
 
 **Security model:** predictions are RLS-locked to their owner and frozen at
-kickoff (enforced in the DB); you can't see anyone's picks. The leaderboard is a
+the round deadline — 23:59 Argentina time the day before a Fecha starts for the
+group stage, the day before each match for knockouts (enforced in the DB); you
+can't see anyone's picks. The leaderboard is a
 `SECURITY DEFINER` RPC that aggregates points per pool without exposing
 individual predictions. Pools are joinable only via their code.
 
