@@ -41,6 +41,11 @@ export function MatchList({ poolId }: { poolId: string }) {
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [error, setError] = useState('');
+  // User overrides per section. Missing key -> default-open if the section
+  // still has at least one pronosticable match.
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
+  const setSectionOpen = (k: string, v: boolean) =>
+    setOpenSections((s) => ({ ...s, [k]: v }));
 
   const load = useCallback(async () => {
     const [mRes, pRes, pmRes] = await Promise.all([
@@ -223,6 +228,34 @@ export function MatchList({ poolId }: { poolId: string }) {
     );
   }
 
+  function renderSection(key: string, title: string, sectionMatches: Match[]) {
+    const hasOpenMatch = sectionMatches.some((m) => !isLocked(m, matches));
+    const open = openSections[key] ?? hasOpenMatch;
+    return (
+      <section key={key} className="card">
+        <h3
+          className={`phase-title toggle${open ? '' : ' closed'}`}
+          role="button"
+          tabIndex={0}
+          aria-expanded={open}
+          onClick={() => setSectionOpen(key, !open)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setSectionOpen(key, !open);
+            }
+          }}
+        >
+          <span className="chev" aria-hidden="true">
+            {open ? '▾' : '▸'}
+          </span>
+          {title}
+        </h3>
+        {open && sectionMatches.map(renderMatch)}
+      </section>
+    );
+  }
+
   if (loading) {
     return (
       <div className="card">
@@ -268,25 +301,21 @@ export function MatchList({ poolId }: { poolId: string }) {
           const fechaKeys = [...byFecha.keys()].sort(
             (a, b) => (a === -1 ? 99 : a) - (b === -1 ? 99 : b),
           );
-          return fechaKeys.map((fk) => (
-            <section key={`gs-${fk}`} className="card">
-              <h3 className="phase-title">
-                {fk === -1
-                  ? 'Fase de grupos · Fecha a confirmar'
-                  : `Fase de grupos · Fecha ${fk}`}
-              </h3>
-              {byFecha.get(fk)!.map(renderMatch)}
-            </section>
-          ));
+          return fechaKeys.map((fk) =>
+            renderSection(
+              `gs-${fk}`,
+              fk === -1
+                ? 'Fase de grupos · Fecha a confirmar'
+                : `Fase de grupos · Fecha ${fk}`,
+              byFecha.get(fk)!,
+            ),
+          );
         }
 
-        return (
-          <section key={sk} className="card">
-            <h3 className="phase-title">
-              {sk === '__none__' ? 'Partidos' : stageLabel(sk)}
-            </h3>
-            {stageMatches.map(renderMatch)}
-          </section>
+        return renderSection(
+          sk,
+          sk === '__none__' ? 'Partidos' : stageLabel(sk),
+          stageMatches,
         );
       })}
     </div>

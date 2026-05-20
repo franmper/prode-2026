@@ -139,6 +139,25 @@
   padding-bottom: 6px;
 }
 section:first-of-type .phase-title { margin-top: 0; }
+.phase-title.toggle {
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.phase-title.toggle:hover { color: var(--brand); }
+.phase-title.toggle:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+.phase-title .chev {
+  display: inline-block;
+  font-size: 13px;
+  color: var(--muted);
+  width: 14px;
+}
+.phase-title.toggle.closed { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
 .group-title {
   margin: 14px 0 8px;
   font-size: 13px;
