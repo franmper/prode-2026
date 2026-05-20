@@ -120,6 +120,17 @@
 }
 .match.locked { opacity: 0.85; }
 
+.match .picks { margin-top: 10px; }
+.pick-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  padding: 4px 0;
+  border-top: 1px dashed var(--border);
+}
+.pick-row:first-of-type { border-top: none; }
+.pick-row.me { color: var(--brand); font-weight: 600; }
+
 .phase-title {
   margin: 22px 0 10px;
   font-size: 17px;

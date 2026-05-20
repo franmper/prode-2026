@@ -139,7 +139,7 @@ export function PoolDetail() {
         )}
       </div>
 
-      {tab === 'matches' && <MatchList />}
+      {tab === 'matches' && <MatchList poolId={pool.id} />}
       {tab === 'board' && (
         <div className="card">
           <Leaderboard poolId={pool.id} />

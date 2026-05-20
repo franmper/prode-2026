@@ -14,7 +14,6 @@ import {
   formatDeadline,
 } from '../lib/scoring';
 
-// Phase display order; unknown stages get appended after these.
 const STAGE_ORDER = [
   'GROUP_STAGE',
   'LAST_32',
@@ -25,32 +24,70 @@ const STAGE_ORDER = [
   'FINAL',
 ];
 
-export function MatchList() {
+interface Member {
+  id: string;
+  display_name: string;
+}
+
+export function MatchList({ poolId }: { poolId: string }) {
   const { user } = useAuth();
   const [matches, setMatches] = useState<Match[]>([]);
-  const [preds, setPreds] = useState<Record<string, Prediction>>({});
+  const [myPreds, setMyPreds] = useState<Record<string, Prediction>>({});
+  // matchId -> { userId -> predicted_outcome } across this liga's members.
+  const [picksByMatch, setPicksByMatch] = useState<
+    Record<string, Record<string, Outcome>>
+  >({});
+  const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [error, setError] = useState('');
 
   const load = useCallback(async () => {
-    const [m, p] = await Promise.all([
+    const [mRes, pRes, pmRes] = await Promise.all([
       supabase.from('matches').select('*').order('kickoff_at'),
       supabase.from('predictions').select('*'),
+      supabase.from('pool_members').select('user_id').eq('pool_id', poolId),
     ]);
-    if (m.error) setError(m.error.message);
-    setMatches((m.data as Match[]) ?? []);
-    const map: Record<string, Prediction> = {};
-    for (const row of (p.data as Prediction[]) ?? []) map[row.match_id] = row;
-    setPreds(map);
+    if (mRes.error) setError(mRes.error.message);
+    setMatches((mRes.data as Match[]) ?? []);
+
+    // Liga members + their display names.
+    const memberIds = (pmRes.data ?? []).map(
+      (r: { user_id: string }) => r.user_id,
+    );
+    let mem: Member[] = [];
+    if (memberIds.length > 0) {
+      const { data: profs } = await supabase
+        .from('profiles')
+        .select('id, display_name')
+        .in('id', memberIds);
+      mem = (profs as Member[]) ?? [];
+      mem.sort((a, b) => a.display_name.localeCompare(b.display_name, 'es'));
+    }
+    setMembers(mem);
+    const memberSet = new Set(mem.map((x) => x.id));
+
+    // Split predictions: own ones (regardless of liga) drive the UI state;
+    // visible ones from this liga's members feed the post-lock reveal.
+    const mine: Record<string, Prediction> = {};
+    const picks: Record<string, Record<string, Outcome>> = {};
+    for (const row of (pRes.data as Prediction[]) ?? []) {
+      if (row.user_id === user?.id) mine[row.match_id] = row;
+      if (memberSet.has(row.user_id)) {
+        (picks[row.match_id] ??= {})[row.user_id] = row.predicted_outcome;
+      }
+    }
+    setMyPreds(mine);
+    setPicksByMatch(picks);
     setLoading(false);
-  }, []);
+  }, [poolId, user?.id]);
 
   useEffect(() => {
     load();
-    // Refresca en vivo cuando cambian los resultados (los escribe la Edge Function).
+    // Refresca cuando cambian los partidos (status/score -> nuevos locks
+    // habilitan ver pronósticos del resto).
     const channel = supabase
-      .channel('matches-changes')
+      .channel(`matches-${poolId}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'matches' },
@@ -60,7 +97,7 @@ export function MatchList() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [load]);
+  }, [load, poolId]);
 
   async function pick(match: Match, outcome: Outcome) {
     if (!user || savingId) return;
@@ -84,10 +121,10 @@ export function MatchList() {
 
   function renderMatch(m: Match) {
     const locked = isLocked(m, matches);
-    const pred = preds[m.id];
+    const myPred = myPreds[m.id];
     const finished = m.status === 'finished';
-    const pts = finished && pred
-      ? matchPoints(pred.predicted_outcome, m.home_score, m.away_score)
+    const myPts = finished && myPred
+      ? matchPoints(myPred.predicted_outcome, m.home_score, m.away_score)
       : null;
     const options: Outcome[] = ['home', 'draw', 'away'];
 
@@ -103,9 +140,9 @@ export function MatchList() {
           <span>
             {m.status === 'live' && <span className="pill live">EN VIVO</span>}
             {finished && <span className="pill done">FINAL</span>}
-            {pts != null && (
+            {myPts != null && (
               <span className="pill pts" style={{ marginLeft: 6 }}>
-                +{pts}
+                +{myPts}
               </span>
             )}
           </span>
@@ -122,15 +159,37 @@ export function MatchList() {
         </div>
 
         {locked ? (
-          <div className="muted" style={{ fontSize: 13, marginTop: 8 }}>
-            {pred ? (
-              <>
-                Tu pronóstico: <strong>{label(m, pred.predicted_outcome)}</strong>
-                {finished && (pts ? ' — ¡Acertaste! ✓' : ' — No acertaste ✗')}
-              </>
-            ) : (
-              'No pronosticaste este partido'
-            )}
+          <div className="picks">
+            <div className="muted" style={{ fontSize: 12, marginBottom: 6 }}>
+              Pronósticos de la liga
+            </div>
+            {members.map((mem) => {
+              const out = picksByMatch[m.id]?.[mem.id];
+              const isMe = mem.id === user?.id;
+              const correct =
+                finished && out
+                  ? matchPoints(out, m.home_score, m.away_score) === 1
+                  : null;
+              return (
+                <div key={mem.id} className={`pick-row${isMe ? ' me' : ''}`}>
+                  <span>
+                    {mem.display_name}
+                    {isMe ? ' (vos)' : ''}
+                  </span>
+                  <span>
+                    {out ? (
+                      <>
+                        {label(m, out)}
+                        {correct === true && ' ✓'}
+                        {correct === false && ' ✗'}
+                      </>
+                    ) : (
+                      <span className="muted">Sin pronóstico</span>
+                    )}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         ) : (
           <>
@@ -140,7 +199,7 @@ export function MatchList() {
                   key={o}
                   className={
                     'outcome-btn' +
-                    (pred?.predicted_outcome === o ? ' active' : '')
+                    (myPred?.predicted_outcome === o ? ' active' : '')
                   }
                   disabled={savingId === m.id}
                   onClick={() => pick(m, o)}
@@ -152,7 +211,7 @@ export function MatchList() {
             <div className="muted" style={{ fontSize: 12, marginTop: 8 }}>
               {savingId === m.id
                 ? 'Guardando…'
-                : pred
+                : myPred
                   ? 'Pronóstico guardado — podés cambiarlo'
                   : 'Elegí un resultado'}
               {' · Cierra: '}
@@ -182,7 +241,7 @@ export function MatchList() {
     );
   }
 
-  // Group: phase -> (group stage only) grupo -> matches (kept kickoff-ordered).
+  // Group: phase -> (group stage only) Fecha -> matches (kickoff-ordered).
   const byStage = new Map<string, Match[]>();
   for (const m of matches) {
     const key = m.stage ?? '__none__';
@@ -201,7 +260,6 @@ export function MatchList() {
         const stageMatches = byStage.get(sk)!;
 
         if (sk === 'GROUP_STAGE') {
-          // Subgroup by Fecha (matchday). -1 = matchday not synced yet.
           const byFecha = new Map<number, Match[]>();
           for (const m of stageMatches) {
             const f = m.matchday ?? -1;
