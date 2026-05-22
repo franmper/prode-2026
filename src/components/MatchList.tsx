@@ -29,6 +29,14 @@ interface Member {
   display_name: string;
 }
 
+// One tab: a Fecha (group stage) or a knockout phase.
+interface Section {
+  key: string;
+  title: string;
+  tabLabel: string;
+  matches: Match[];
+}
+
 export function MatchList({ poolId }: { poolId: string }) {
   const { user } = useAuth();
   const [matches, setMatches] = useState<Match[]>([]);
@@ -41,11 +49,8 @@ export function MatchList({ poolId }: { poolId: string }) {
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [error, setError] = useState('');
-  // User overrides per section. Missing key -> default-open if the section
-  // still has at least one pronosticable match.
-  const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
-  const setSectionOpen = (k: string, v: boolean) =>
-    setOpenSections((s) => ({ ...s, [k]: v }));
+  // Selected tab. Null -> fall back to the first section with open matches.
+  const [activeKey, setActiveKey] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const [mRes, pRes, pmRes] = await Promise.all([
@@ -228,34 +233,6 @@ export function MatchList({ poolId }: { poolId: string }) {
     );
   }
 
-  function renderSection(key: string, title: string, sectionMatches: Match[]) {
-    const hasOpenMatch = sectionMatches.some((m) => !isLocked(m, matches));
-    const open = openSections[key] ?? hasOpenMatch;
-    return (
-      <section key={key} className="card">
-        <h3
-          className={`phase-title toggle${open ? '' : ' closed'}`}
-          role="button"
-          tabIndex={0}
-          aria-expanded={open}
-          onClick={() => setSectionOpen(key, !open)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              setSectionOpen(key, !open);
-            }
-          }}
-        >
-          <span className="chev" aria-hidden="true">
-            {open ? '▾' : '▸'}
-          </span>
-          {title}
-        </h3>
-        {open && sectionMatches.map(renderMatch)}
-      </section>
-    );
-  }
-
   if (loading) {
     return (
       <div className="card">
@@ -274,7 +251,7 @@ export function MatchList({ poolId }: { poolId: string }) {
     );
   }
 
-  // Group: phase -> (group stage only) Fecha -> matches (kickoff-ordered).
+  // Group: phase -> matches; the group stage splits further into Fechas.
   const byStage = new Map<string, Match[]>();
   for (const m of matches) {
     const key = m.stage ?? '__none__';
@@ -286,38 +263,70 @@ export function MatchList({ poolId }: { poolId: string }) {
     return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
   });
 
+  // Flatten into one tab per Fecha / phase, in calendar order.
+  const sections: Section[] = [];
+  for (const sk of stageKeys) {
+    const stageMatches = byStage.get(sk)!;
+
+    if (sk === 'GROUP_STAGE') {
+      const byFecha = new Map<number, Match[]>();
+      for (const m of stageMatches) {
+        const f = m.matchday ?? -1;
+        (byFecha.get(f) ?? byFecha.set(f, []).get(f)!).push(m);
+      }
+      const fechaKeys = [...byFecha.keys()].sort(
+        (a, b) => (a === -1 ? 99 : a) - (b === -1 ? 99 : b),
+      );
+      for (const fk of fechaKeys) {
+        sections.push({
+          key: `gs-${fk}`,
+          title:
+            fk === -1
+              ? 'Fase de grupos · Fecha a confirmar'
+              : `Fase de grupos · Fecha ${fk}`,
+          tabLabel: fk === -1 ? 'Fecha ?' : `Fecha ${fk}`,
+          matches: byFecha.get(fk)!,
+        });
+      }
+    } else {
+      const title = sk === '__none__' ? 'Partidos' : stageLabel(sk);
+      sections.push({ key: sk, title, tabLabel: title, matches: stageMatches });
+    }
+  }
+
+  // Default tab: first section that still has a pronosticable match; if every
+  // match is locked, land on the last (most recent) section instead.
+  const sectionHasOpen = (s: Section) =>
+    s.matches.some((m) => !isLocked(m, matches));
+  const defaultSection = sections.find(sectionHasOpen) ?? sections.at(-1)!;
+  const active =
+    sections.find((s) => s.key === activeKey) ?? defaultSection;
+
   return (
     <div>
       {error && <div className="error" style={{ marginBottom: 12 }}>{error}</div>}
-      {stageKeys.map((sk) => {
-        const stageMatches = byStage.get(sk)!;
 
-        if (sk === 'GROUP_STAGE') {
-          const byFecha = new Map<number, Match[]>();
-          for (const m of stageMatches) {
-            const f = m.matchday ?? -1;
-            (byFecha.get(f) ?? byFecha.set(f, []).get(f)!).push(m);
-          }
-          const fechaKeys = [...byFecha.keys()].sort(
-            (a, b) => (a === -1 ? 99 : a) - (b === -1 ? 99 : b),
-          );
-          return fechaKeys.map((fk) =>
-            renderSection(
-              `gs-${fk}`,
-              fk === -1
-                ? 'Fase de grupos · Fecha a confirmar'
-                : `Fase de grupos · Fecha ${fk}`,
-              byFecha.get(fk)!,
-            ),
-          );
-        }
+      <div className="tabs subtabs" role="tablist">
+        {sections.map((s) => (
+          <button
+            key={s.key}
+            role="tab"
+            aria-selected={s.key === active.key}
+            className={s.key === active.key ? 'active' : ''}
+            onClick={() => setActiveKey(s.key)}
+          >
+            {s.tabLabel}
+            {sectionHasOpen(s) && (
+              <span className="dot" aria-hidden="true" title="Partidos abiertos" />
+            )}
+          </button>
+        ))}
+      </div>
 
-        return renderSection(
-          sk,
-          sk === '__none__' ? 'Partidos' : stageLabel(sk),
-          stageMatches,
-        );
-      })}
+      <section className="card">
+        <h3 className="phase-title">{active.title}</h3>
+        {active.matches.map(renderMatch)}
+      </section>
     </div>
   );
 }

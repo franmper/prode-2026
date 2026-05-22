@@ -67,9 +67,26 @@
   letter-spacing: 1px;
 }
 
-.tabs { display: flex; gap: 8px; margin-bottom: 18px; }
+.tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
 .tabs button { background: var(--bg-elev); color: var(--muted); }
 .tabs button.active { background: var(--brand); color: #04130d; }
+
+/* Inner tabs (Fecha / fase) — smaller, may span several rows. */
+.tabs.subtabs { gap: 6px; }
+.tabs.subtabs button {
+  font-size: 13px;
+  padding: 8px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.tabs.subtabs .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+.tabs.subtabs button.active .dot { background: #04130d; }
 
 .match {
   background: var(--bg-elev);
@@ -132,13 +149,12 @@
 .pick-row.me { color: var(--brand); font-weight: 600; }
 
 .phase-title {
-  margin: 22px 0 10px;
+  margin: 0 0 10px;
   font-size: 17px;
   color: var(--text);
   border-bottom: 2px solid var(--brand);
   padding-bottom: 6px;
 }
-section:first-of-type .phase-title { margin-top: 0; }
 .phase-title.toggle {
   cursor: pointer;
   user-select: none;
