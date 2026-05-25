@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import type { Match, Prediction, Outcome } from '../lib/types';
-import { teamName } from '../lib/countries';
+import { teamName, teamFlag } from '../lib/countries';
 import {
   matchPoints,
   isLocked,
@@ -122,11 +122,31 @@ export function MatchList({ poolId }: { poolId: string }) {
     setSavingId(null);
   }
 
+  const flagImg = (raw: string | null | undefined) => {
+    const src = teamFlag(raw);
+    if (!src) return null;
+    return <img className="flag" src={src} alt="" aria-hidden="true" />;
+  };
+
+  const teamWithFlag = (raw: string | null | undefined) => (
+    <>
+      {flagImg(raw)}
+      {teamName(raw)}
+    </>
+  );
+
+  const winLabel = (raw: string | null | undefined) => (
+    <>
+      Gana {flagImg(raw)}
+      {teamName(raw)}
+    </>
+  );
+
   const label = (m: Match, o: Outcome) =>
     o === 'home'
-      ? `Gana ${teamName(m.home_team)}`
+      ? winLabel(m.home_team)
       : o === 'away'
-        ? `Gana ${teamName(m.away_team)}`
+        ? winLabel(m.away_team)
         : 'Empate';
 
   function renderMatch(m: Match) {
@@ -159,13 +179,11 @@ export function MatchList({ poolId }: { poolId: string }) {
         </div>
 
         <div className="matchup">
-          <span className="team">{teamName(m.home_team)}</span>
+          <span className="team">{teamWithFlag(m.home_team)}</span>
           <span className="vs">
             {locked ? `${m.home_score ?? '–'} : ${m.away_score ?? '–'}` : 'vs'}
           </span>
-          <span className="team" style={{ textAlign: 'right' }}>
-            {teamName(m.away_team)}
-          </span>
+          <span className="team team-right">{teamWithFlag(m.away_team)}</span>
         </div>
 
         {locked ? (

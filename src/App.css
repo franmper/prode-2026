@@ -107,7 +107,25 @@
   align-items: center;
   gap: 10px;
 }
-.match .team { font-weight: 600; }
+.match .team {
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.match .team-right { justify-content: flex-end; }
+.flag {
+  width: 22px;
+  height: 16px;
+  object-fit: cover;
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+.match .outcome-btn .flag { width: 18px; height: 13px; }
+.pick-row .flag { width: 18px; height: 13px; }
 .match .vs {
   font-weight: 800;
   font-size: 16px;
