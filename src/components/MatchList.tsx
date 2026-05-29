@@ -4,7 +4,8 @@ import { useAuth } from '../contexts/AuthContext';
 import type { Match, Prediction, Outcome } from '../lib/types';
 import { teamName, teamFlag } from '../lib/countries';
 import {
-  matchPoints,
+  matchPointsForMatch,
+  isKnockout,
   isLocked,
   formatKickoff,
   roundLabel,
@@ -207,31 +208,36 @@ export function MatchList({ poolId }: { poolId: string }) {
     </>
   );
 
-  // Buttons: only the flag ("Gana {flag}").
-  const winLabel = (raw: string | null | undefined) => (
-    <>Gana {flagImg(raw)}</>
+  // Verb: knockouts are about who advances ("Pasa"), group stage who wins.
+  const verb = (m: Match) => (isKnockout(m.stage) ? 'Pasa' : 'Gana');
+
+  // Buttons: only the flag ("Gana/Pasa {flag}").
+  const winLabel = (m: Match, raw: string | null | undefined) => (
+    <>
+      {verb(m)} {flagImg(raw)}
+    </>
   );
 
   const label = (m: Match, o: Outcome) =>
     o === 'home'
-      ? winLabel(m.home_team)
+      ? winLabel(m, m.home_team)
       : o === 'away'
-        ? winLabel(m.away_team)
+        ? winLabel(m, m.away_team)
         : 'Empate';
 
   // Reveal rows keep the country name alongside the flag for clarity.
-  const winLabelFull = (raw: string | null | undefined) => (
+  const winLabelFull = (m: Match, raw: string | null | undefined) => (
     <>
-      Gana {flagImg(raw)}
+      {verb(m)} {flagImg(raw)}
       {teamName(raw)}
     </>
   );
 
   const labelFull = (m: Match, o: Outcome) =>
     o === 'home'
-      ? winLabelFull(m.home_team)
+      ? winLabelFull(m, m.home_team)
       : o === 'away'
-        ? winLabelFull(m.away_team)
+        ? winLabelFull(m, m.away_team)
         : 'Empate';
 
   // What a correct outcome in this match is worth for this liga (default 1).
@@ -258,11 +264,14 @@ export function MatchList({ poolId }: { poolId: string }) {
       (cfg?.count ?? 0) - (mySpentByStage[stage] ?? 0),
     );
     const myPts = finished && myPred
-      ? matchPoints(myPred.predicted_outcome, m.home_score, m.away_score) *
+      ? matchPointsForMatch(myPred.predicted_outcome, m) *
         worth(m) *
         (doubled ? 2 : 1)
       : null;
-    const options: Outcome[] = ['home', 'draw', 'away'];
+    // Knockouts: pick who advances (no draw). Group stage: 1-X-2.
+    const options: Outcome[] = isKnockout(m.stage)
+      ? ['home', 'away']
+      : ['home', 'draw', 'away'];
 
     return (
       <div key={m.id} className={`match${locked ? ' locked' : ''}`}>
@@ -312,6 +321,13 @@ export function MatchList({ poolId }: { poolId: string }) {
           <span className="team team-right">{teamWithFlag(m.away_team)}</span>
         </div>
 
+        {finished && isKnockout(m.stage) && m.winner && m.winner !== 'draw' && (
+          <div className="advances muted">
+            Avanza{' '}
+            {teamWithFlag(m.winner === 'home' ? m.home_team : m.away_team)}
+          </div>
+        )}
+
         {locked ? (
           <div className="picks">
             <div className="muted" style={{ fontSize: 12, marginBottom: 6 }}>
@@ -321,9 +337,7 @@ export function MatchList({ poolId }: { poolId: string }) {
               const out = picksByMatch[m.id]?.[mem.id];
               const isMe = mem.id === user?.id;
               const correct =
-                finished && out
-                  ? matchPoints(out, m.home_score, m.away_score) === 1
-                  : null;
+                finished && out ? matchPointsForMatch(out, m) === 1 : null;
               return (
                 <div key={mem.id} className={`pick-row${isMe ? ' me' : ''}`}>
                   <span>
@@ -372,7 +386,9 @@ export function MatchList({ poolId }: { poolId: string }) {
                 ? 'Guardando…'
                 : myPred
                   ? 'Pronóstico guardado — podés cambiarlo'
-                  : 'Elegí un resultado'}
+                  : isKnockout(m.stage)
+                    ? 'Elegí quién avanza'
+                    : 'Elegí un resultado'}
               {' · Cierra: '}
               {formatDeadline(lockAt(m, matches))} (ARG)
             </div>

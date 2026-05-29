@@ -37,13 +37,25 @@ interface FdMatch {
   matchday: number | null;
   homeTeam: { name: string | null };
   awayTeam: { name: string | null };
-  score: { fullTime: { home: number | null; away: number | null } };
+  score: {
+    // winner already accounts for extra time and penalties (who advances).
+    winner: 'HOME_TEAM' | 'AWAY_TEAM' | 'DRAW' | null;
+    fullTime: { home: number | null; away: number | null };
+  };
 }
 
 function mapStatus(s: FdStatus): 'scheduled' | 'live' | 'finished' {
   if (s === 'FINISHED' || s === 'AWARDED') return 'finished';
   if (s === 'IN_PLAY' || s === 'PAUSED') return 'live';
   return 'scheduled';
+}
+
+// Normalize the API winner to our 1-X-2 vocabulary (null until decided).
+function mapWinner(w: FdMatch['score']['winner']): 'home' | 'away' | 'draw' | null {
+  if (w === 'HOME_TEAM') return 'home';
+  if (w === 'AWAY_TEAM') return 'away';
+  if (w === 'DRAW') return 'draw';
+  return null;
 }
 
 // CORS so the browser (owner "Sincronizar fixture" button) can call this.
@@ -104,6 +116,7 @@ Deno.serve(async (req) => {
       kickoff_at: m.utcDate,
       home_score: m.score?.fullTime?.home ?? null,
       away_score: m.score?.fullTime?.away ?? null,
+      winner: mapWinner(m.score?.winner ?? null),
       status: mapStatus(m.status),
     }));
 

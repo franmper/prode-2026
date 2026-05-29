@@ -27,6 +27,37 @@ export function matchPoints(
   return predicted === actual ? 1 : 0;
 }
 
+// Knockout phases: the pick is "who advances" (no draw), decided by the API
+// winner (which accounts for extra time / penalties).
+const KNOCKOUT_STAGES = new Set([
+  'LAST_32',
+  'LAST_16',
+  'QUARTER_FINALS',
+  'SEMI_FINALS',
+  'THIRD_PLACE',
+  'FINAL',
+]);
+
+export function isKnockout(stage: string | null): boolean {
+  return !!stage && KNOCKOUT_STAGES.has(stage);
+}
+
+// The outcome that counts for a match: who advances in knockouts, the 1-X-2
+// result of the score in the group stage.
+export function actualOutcomeForMatch(m: Match): Outcome | null {
+  if (isKnockout(m.stage)) return m.winner;
+  return actualOutcome(m.home_score, m.away_score);
+}
+
+export function matchPointsForMatch(
+  predicted: Outcome | null,
+  m: Match,
+): number {
+  const actual = actualOutcomeForMatch(m);
+  if (!predicted || actual == null) return 0;
+  return predicted === actual ? 1 : 0;
+}
+
 // First kickoff of the round this match belongs to.
 // Group stage: earliest match sharing the same matchday (Fecha).
 // Knockouts: the match itself (rolling, per-match).

@@ -68,10 +68,16 @@ export function RulesPanel({ poolId }: Readonly<{ poolId: string }>) {
       <section className="rule-block">
         <h4>1 · El pronóstico</h4>
         <p>
-          En cada partido elegís uno de tres resultados:{' '}
+          <strong>Fase de grupos:</strong> elegís uno de tres resultados —{' '}
           <strong>gana el local</strong>, <strong>empate</strong> o{' '}
           <strong>gana el visitante</strong>. No se pronostica el marcador
-          exacto, solo quién gana (o si empatan).
+          exacto, solo el 1-X-2.
+        </p>
+        <p>
+          <strong>Eliminación directa:</strong> elegís{' '}
+          <strong>quién avanza</strong> de ronda (no hay empate). Cuenta el
+          equipo que clasifica, incluyendo alargue y penales: si el partido
+          termina 1-1 y se define por penales, acertás si elegiste al que pasa.
         </p>
       </section>
 

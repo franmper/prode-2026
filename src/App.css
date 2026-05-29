@@ -301,6 +301,17 @@
 .rules li { margin-bottom: 4px; }
 .rules-table { max-width: 340px; margin: 8px 0; }
 
+.match .advances {
+  text-align: center;
+  font-size: 12px;
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.match .advances .team-name { font-weight: 600; }
+
 table.board { width: 100%; border-collapse: collapse; }
 table.board th, table.board td {
   text-align: left;

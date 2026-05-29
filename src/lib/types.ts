@@ -36,6 +36,9 @@ export interface Match {
   kickoff_at: string;
   home_score: number | null;
   away_score: number | null;
+  // Who advances (knockouts) / 1-X-2 result — from the API, accounts for ET
+  // and penalties. Null until decided.
+  winner: Outcome | null;
   status: MatchStatus;
 }
 
