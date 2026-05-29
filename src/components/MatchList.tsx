@@ -24,6 +24,14 @@ const STAGE_ORDER = [
   'FINAL',
 ];
 
+// Stages where the comodín ×2 may be used (Dieciseisavos → Semifinal).
+const DOBLE_STAGES = new Set([
+  'LAST_32',
+  'LAST_16',
+  'QUARTER_FINALS',
+  'SEMI_FINALS',
+]);
+
 interface Member {
   id: string;
   display_name: string;
@@ -46,6 +54,17 @@ export function MatchList({ poolId }: { poolId: string }) {
     Record<string, Record<string, Outcome>>
   >({});
   const [members, setMembers] = useState<Member[]>([]);
+  // stage -> points this liga awards for a correct outcome (default 1).
+  const [stagePoints, setStagePoints] = useState<Record<string, number>>({});
+  // Comodín ×2 per-phase config + picks. stage -> { enabled, count }.
+  const [dobleConfig, setDobleConfig] = useState<
+    Record<string, { enabled: boolean; count: number }>
+  >({});
+  const [myDoubles, setMyDoubles] = useState<Set<string>>(new Set());
+  // matchId -> set of member userIds that doubled it (revealed after lock).
+  const [doublesByMatch, setDoublesByMatch] = useState<
+    Record<string, Set<string>>
+  >({});
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [error, setError] = useState('');
@@ -53,13 +72,52 @@ export function MatchList({ poolId }: { poolId: string }) {
   const [activeKey, setActiveKey] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const [mRes, pRes, pmRes] = await Promise.all([
+    const [mRes, pRes, pmRes, spRes, psRes, mdRes] = await Promise.all([
       supabase.from('matches').select('*').order('kickoff_at'),
       supabase.from('predictions').select('*'),
       supabase.from('pool_members').select('user_id').eq('pool_id', poolId),
+      supabase
+        .from('pool_stage_points')
+        .select('stage, points')
+        .eq('pool_id', poolId),
+      supabase
+        .from('pool_stage_doubles')
+        .select('stage, enabled, count')
+        .eq('pool_id', poolId),
+      supabase
+        .from('match_doubles')
+        .select('user_id, match_id')
+        .eq('pool_id', poolId),
     ]);
     if (mRes.error) setError(mRes.error.message);
     setMatches((mRes.data as Match[]) ?? []);
+
+    const sp: Record<string, number> = {};
+    for (const r of (spRes.data as { stage: string; points: number }[]) ?? []) {
+      sp[r.stage] = r.points;
+    }
+    setStagePoints(sp);
+
+    const dc: Record<string, { enabled: boolean; count: number }> = {};
+    for (const r of (psRes.data as {
+      stage: string;
+      enabled: boolean;
+      count: number;
+    }[]) ?? []) {
+      dc[r.stage] = { enabled: r.enabled, count: r.count };
+    }
+    setDobleConfig(dc);
+
+    // My ×2 picks + everyone's (visible ones reveal after each match locks).
+    const mineD = new Set<string>();
+    const byMatch: Record<string, Set<string>> = {};
+    for (const r of (mdRes.data as { user_id: string; match_id: string }[]) ??
+      []) {
+      if (r.user_id === user?.id) mineD.add(r.match_id);
+      (byMatch[r.match_id] ??= new Set()).add(r.user_id);
+    }
+    setMyDoubles(mineD);
+    setDoublesByMatch(byMatch);
 
     // Liga members + their display names.
     const memberIds = (pmRes.data ?? []).map(
@@ -122,6 +180,20 @@ export function MatchList({ poolId }: { poolId: string }) {
     setSavingId(null);
   }
 
+  async function toggleDouble(match: Match) {
+    if (!user || savingId) return;
+    setSavingId(match.id);
+    setError('');
+    const { error } = await supabase.rpc('set_match_double', {
+      p_pool_id: poolId,
+      p_match_id: match.id,
+      p_on: !myDoubles.has(match.id),
+    });
+    if (error) setError(error.message);
+    else await load();
+    setSavingId(null);
+  }
+
   const flagImg = (raw: string | null | undefined) => {
     const src = teamFlag(raw);
     if (!src) return null;
@@ -131,15 +203,13 @@ export function MatchList({ poolId }: { poolId: string }) {
   const teamWithFlag = (raw: string | null | undefined) => (
     <>
       {flagImg(raw)}
-      {teamName(raw)}
+      <span className="team-name">{teamName(raw)}</span>
     </>
   );
 
+  // Buttons: only the flag ("Gana {flag}").
   const winLabel = (raw: string | null | undefined) => (
-    <>
-      Gana {flagImg(raw)}
-      {teamName(raw)}
-    </>
+    <>Gana {flagImg(raw)}</>
   );
 
   const label = (m: Match, o: Outcome) =>
@@ -149,12 +219,48 @@ export function MatchList({ poolId }: { poolId: string }) {
         ? winLabel(m.away_team)
         : 'Empate';
 
+  // Reveal rows keep the country name alongside the flag for clarity.
+  const winLabelFull = (raw: string | null | undefined) => (
+    <>
+      Gana {flagImg(raw)}
+      {teamName(raw)}
+    </>
+  );
+
+  const labelFull = (m: Match, o: Outcome) =>
+    o === 'home'
+      ? winLabelFull(m.home_team)
+      : o === 'away'
+        ? winLabelFull(m.away_team)
+        : 'Empate';
+
+  // What a correct outcome in this match is worth for this liga (default 1).
+  const worth = (m: Match) => stagePoints[m.stage ?? ''] ?? 1;
+
+  // How many of my ×2 picks are already spent, per phase.
+  const mySpentByStage: Record<string, number> = {};
+  for (const m of matches) {
+    if (myDoubles.has(m.id) && m.stage) {
+      mySpentByStage[m.stage] = (mySpentByStage[m.stage] ?? 0) + 1;
+    }
+  }
+
   function renderMatch(m: Match) {
     const locked = isLocked(m, matches);
     const myPred = myPreds[m.id];
     const finished = m.status === 'finished';
+    const doubled = myDoubles.has(m.id);
+    const stage = m.stage ?? '';
+    const cfg = dobleConfig[stage];
+    const canDouble = !!cfg?.enabled && DOBLE_STAGES.has(stage);
+    const stageRemaining = Math.max(
+      0,
+      (cfg?.count ?? 0) - (mySpentByStage[stage] ?? 0),
+    );
     const myPts = finished && myPred
-      ? matchPoints(myPred.predicted_outcome, m.home_score, m.away_score)
+      ? matchPoints(myPred.predicted_outcome, m.home_score, m.away_score) *
+        worth(m) *
+        (doubled ? 2 : 1)
       : null;
     const options: Outcome[] = ['home', 'draw', 'away'];
 
@@ -168,8 +274,28 @@ export function MatchList({ poolId }: { poolId: string }) {
             {formatKickoff(m.kickoff_at)}
           </span>
           <span>
-            {m.status === 'live' && <span className="pill live">EN VIVO</span>}
-            {finished && <span className="pill done">FINAL</span>}
+            <span className="pill worth" title="Puntos por acertar este partido">
+              {worth(m)} {worth(m) === 1 ? 'pt' : 'pts'}
+            </span>
+            {doubled && (
+              <span
+                className="pill doble"
+                style={{ marginLeft: 6 }}
+                title="Comodín: este partido te cuenta doble"
+              >
+                ×2
+              </span>
+            )}
+            {m.status === 'live' && (
+              <span className="pill live" style={{ marginLeft: 6 }}>
+                EN VIVO
+              </span>
+            )}
+            {finished && (
+              <span className="pill done" style={{ marginLeft: 6 }}>
+                FINAL
+              </span>
+            )}
             {myPts != null && (
               <span className="pill pts" style={{ marginLeft: 6 }}>
                 +{myPts}
@@ -207,7 +333,12 @@ export function MatchList({ poolId }: { poolId: string }) {
                   <span>
                     {out ? (
                       <>
-                        {label(m, out)}
+                        {labelFull(m, out)}
+                        {doublesByMatch[m.id]?.has(mem.id) && (
+                          <span className="pill doble" style={{ marginLeft: 6 }}>
+                            ×2
+                          </span>
+                        )}
                         {correct === true && ' ✓'}
                         {correct === false && ' ✗'}
                       </>
@@ -245,6 +376,27 @@ export function MatchList({ poolId }: { poolId: string }) {
               {' · Cierra: '}
               {formatDeadline(lockAt(m, matches))} (ARG)
             </div>
+            {canDouble && (
+              <div className="doble-row">
+                <button
+                  className={'doble-btn' + (doubled ? ' active' : '')}
+                  disabled={
+                    savingId === m.id || (!doubled && stageRemaining === 0)
+                  }
+                  onClick={() => toggleDouble(m)}
+                  title="Tu comodín duplica los puntos de este partido"
+                >
+                  {doubled ? '✓ Doble ×2 activado' : 'Usar comodín ×2'}
+                </button>
+                <span className="muted" style={{ fontSize: 12 }}>
+                  {doubled
+                    ? 'Este partido te cuenta doble'
+                    : stageRemaining > 0
+                      ? `Te ${stageRemaining === 1 ? 'queda' : 'quedan'} ${stageRemaining} comodín${stageRemaining === 1 ? '' : 'es'} en esta fase`
+                      : 'Sin comodines en esta fase'}
+                </span>
+              </div>
+            )}
           </>
         )}
       </div>

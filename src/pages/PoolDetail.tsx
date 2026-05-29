@@ -7,8 +7,9 @@ import { TopBar } from '../components/TopBar';
 import { MatchList } from '../components/MatchList';
 import { Leaderboard } from '../components/Leaderboard';
 import { MembersPanel } from '../components/MembersPanel';
+import { ScoringPanel } from '../components/ScoringPanel';
 
-type Tab = 'matches' | 'board' | 'members';
+type Tab = 'matches' | 'board' | 'members' | 'scoring';
 
 export function PoolDetail() {
   const { poolId } = useParams<{ poolId: string }>();
@@ -137,6 +138,14 @@ export function PoolDetail() {
             Miembros
           </button>
         )}
+        {isOwner && (
+          <button
+            className={tab === 'scoring' ? 'active' : ''}
+            onClick={() => setTab('scoring')}
+          >
+            Puntajes
+          </button>
+        )}
       </div>
 
       {tab === 'matches' && <MatchList poolId={pool.id} />}
@@ -149,6 +158,12 @@ export function PoolDetail() {
         <div className="card">
           <h3 style={{ marginTop: 0 }}>Miembros de la liga</h3>
           <MembersPanel poolId={pool.id} />
+        </div>
+      )}
+      {tab === 'scoring' && isOwner && (
+        <div className="card">
+          <h3 style={{ marginTop: 0 }}>Puntajes por fase</h3>
+          <ScoringPanel poolId={pool.id} />
         </div>
       )}
     </div>

@@ -97,7 +97,7 @@
 .match .meta {
   font-size: 12px;
   color: var(--muted);
-  margin-bottom: 8px;
+  margin-bottom: 16px;
   display: flex;
   justify-content: space-between;
 }
@@ -110,11 +110,14 @@
 .match .team {
   font-weight: 600;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
+  text-align: center;
 }
-.match .team-right { justify-content: flex-end; }
+.match .team .team-name { line-height: 1.2; }
+.match .team-right { align-items: center; }
 .flag {
   width: 22px;
   height: 16px;
@@ -124,6 +127,7 @@
   flex-shrink: 0;
   vertical-align: middle;
 }
+.match .team .flag { width: 32px; height: 23px; }
 .match .outcome-btn .flag { width: 18px; height: 13px; }
 .pick-row .flag { width: 18px; height: 13px; }
 .match .vs {
@@ -210,6 +214,85 @@
 .pill.live { background: var(--danger); color: #fff; }
 .pill.done { background: var(--brand-d); color: #04130d; }
 .pill.pts { background: var(--accent); color: #1a1400; font-weight: 700; }
+.pill.worth { background: var(--border); color: var(--muted); font-weight: 600; }
+.pill.doble { background: var(--accent); color: #1a1400; font-weight: 800; }
+
+.doble-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+.doble-btn {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px dashed var(--accent);
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 999px;
+}
+.doble-btn:hover:not(:disabled) { background: var(--bg-elev); }
+.doble-btn.active {
+  background: var(--accent);
+  color: #1a1400;
+  border-style: solid;
+}
+.doble-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.stage-points {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 320px;
+}
+.stage-points-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  font-weight: 600;
+}
+.stage-points-row input[type='number'] {
+  width: 72px;
+  text-align: center;
+}
+.stage-points-row input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+}
+
+.doble-config {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 360px;
+}
+.doble-config-head,
+.doble-config-row {
+  display: grid;
+  grid-template-columns: 1fr 60px 90px;
+  align-items: center;
+  gap: 12px;
+}
+.doble-config-head {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 600;
+}
+.doble-config-row {
+  font-weight: 600;
+}
+.doble-config-row input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  justify-self: center;
+}
+.doble-config-row input[type='number'] {
+  width: 72px;
+  text-align: center;
+}
 
 table.board { width: 100%; border-collapse: collapse; }
 table.board th, table.board td {

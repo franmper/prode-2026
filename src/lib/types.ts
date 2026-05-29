@@ -48,6 +48,23 @@ export interface Prediction {
   updated_at: string;
 }
 
+// Per-liga, per-phase point weight. A correct outcome in a given stage is
+// worth `points` instead of a flat 1, letting later phases count for more.
+export interface StagePoints {
+  pool_id: string;
+  stage: string;
+  points: number;
+}
+
+// Per-liga, per-phase comodín ×2 config. `count` is how many ×2 picks each
+// player gets in that phase; `enabled` turns the comodín on for the phase.
+export interface StageDouble {
+  pool_id: string;
+  stage: string;
+  enabled: boolean;
+  count: number;
+}
+
 export interface LeaderboardRow {
   pool_id: string;
   user_id: string;

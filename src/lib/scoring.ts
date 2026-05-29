@@ -105,6 +105,7 @@ export function formatKickoff(iso: string): string {
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
+    hour12: false,
   });
 }
 
@@ -117,5 +118,6 @@ export function formatDeadline(d: Date): string {
     month: 'short',
     hour: '2-digit',
     minute: '2-digit',
+    hour12: false,
   }).format(new Date(d.getTime() - 60_000));
 }
