@@ -8,8 +8,9 @@ import { MatchList } from '../components/MatchList';
 import { Leaderboard } from '../components/Leaderboard';
 import { MembersPanel } from '../components/MembersPanel';
 import { ScoringPanel } from '../components/ScoringPanel';
+import { RulesPanel } from '../components/RulesPanel';
 
-type Tab = 'matches' | 'board' | 'members' | 'scoring';
+type Tab = 'matches' | 'board' | 'rules' | 'members' | 'scoring';
 
 export function PoolDetail() {
   const { poolId } = useParams<{ poolId: string }>();
@@ -130,6 +131,12 @@ export function PoolDetail() {
         >
           Posiciones
         </button>
+        <button
+          className={tab === 'rules' ? 'active' : ''}
+          onClick={() => setTab('rules')}
+        >
+          Reglas
+        </button>
         {isOwner && (
           <button
             className={tab === 'members' ? 'active' : ''}
@@ -152,6 +159,11 @@ export function PoolDetail() {
       {tab === 'board' && (
         <div className="card">
           <Leaderboard poolId={pool.id} />
+        </div>
+      )}
+      {tab === 'rules' && (
+        <div className="card">
+          <RulesPanel poolId={pool.id} />
         </div>
       )}
       {tab === 'members' && isOwner && (

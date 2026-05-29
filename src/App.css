@@ -294,6 +294,13 @@
   text-align: center;
 }
 
+.rules .rule-block { margin-bottom: 20px; }
+.rules h4 { margin: 0 0 6px; }
+.rules p { margin: 0 0 8px; line-height: 1.5; }
+.rules ul { margin: 0 0 8px; padding-left: 20px; line-height: 1.5; }
+.rules li { margin-bottom: 4px; }
+.rules-table { max-width: 340px; margin: 8px 0; }
+
 table.board { width: 100%; border-collapse: collapse; }
 table.board th, table.board td {
   text-align: left;
