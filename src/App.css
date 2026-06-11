@@ -117,6 +117,7 @@
   text-align: center;
 }
 .match .team .team-name { line-height: 1.2; }
+.match .team.lost { opacity: 0.45; }
 .match .team-right { align-items: center; }
 .flag {
   width: 22px;
@@ -160,6 +161,26 @@
 .match.locked { opacity: 0.85; }
 
 .match .picks { margin-top: 10px; }
+.match .picks > summary {
+  font-size: 12px;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 4px 0;
+  list-style: none;
+  user-select: none;
+}
+.match .picks > summary::-webkit-details-marker { display: none; }
+.match .picks > summary .hint { opacity: 0.7; font-style: italic; }
+.match .picks > summary::before {
+  content: '▸';
+  display: inline-block;
+  margin-right: 6px;
+  font-size: 15px;
+  line-height: 1;
+  transition: transform 0.15s ease;
+}
+.match .picks[open] > summary::before { transform: rotate(90deg); }
+.match .picks[open] > summary { margin-bottom: 6px; }
 .pick-row {
   display: flex;
   justify-content: space-between;
@@ -216,6 +237,18 @@
 .pill.pts { background: var(--accent); color: #1a1400; font-weight: 700; }
 .pill.worth { background: var(--border); color: var(--muted); font-weight: 600; }
 .pill.doble { background: var(--accent); color: #1a1400; font-weight: 800; }
+
+.result-line { margin-top: 14px; text-align: center; }
+.result-badge {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 999px;
+}
+.result-badge.ok { background: var(--brand); color: #04130d; }
+.result-badge.no { background: var(--danger); color: #fff; }
+.result-badge.none { background: var(--border); color: var(--muted); }
 
 .doble-row {
   display: flex;

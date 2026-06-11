@@ -46,6 +46,25 @@ interface Section {
   matches: Match[];
 }
 
+// Colored badge that tells you, at a glance, if your pick landed and how
+// many points it earned this liga.
+function ResultBadge({
+  correct,
+  pts,
+}: Readonly<{ correct: boolean | null; pts: number | null }>) {
+  if (correct === true) {
+    return (
+      <span className="result-badge ok">
+        ✓ Acertaste — sumaste {pts} {pts === 1 ? 'pt' : 'pts'}
+      </span>
+    );
+  }
+  if (correct === false) {
+    return <span className="result-badge no">✗ No acertaste</span>;
+  }
+  return <span className="result-badge none">Sin pronóstico</span>;
+}
+
 export function MatchList({ poolId }: { poolId: string }) {
   const { user } = useAuth();
   const [matches, setMatches] = useState<Match[]>([]);
@@ -268,6 +287,11 @@ export function MatchList({ poolId }: { poolId: string }) {
         worth(m) *
         (doubled ? 2 : 1)
       : null;
+    // Did my pick land? Only meaningful once the match is finished.
+    const myCorrect =
+      finished && myPred
+        ? matchPointsForMatch(myPred.predicted_outcome, m) === 1
+        : null;
     // Knockouts: pick who advances (no draw). Group stage: 1-X-2.
     const options: Outcome[] = isKnockout(m.stage)
       ? ['home', 'away']
@@ -300,25 +324,23 @@ export function MatchList({ poolId }: { poolId: string }) {
                 EN VIVO
               </span>
             )}
-            {finished && (
-              <span className="pill done" style={{ marginLeft: 6 }}>
-                FINAL
-              </span>
-            )}
-            {myPts != null && (
-              <span className="pill pts" style={{ marginLeft: 6 }}>
-                +{myPts}
-              </span>
-            )}
           </span>
         </div>
 
         <div className="matchup">
-          <span className="team">{teamWithFlag(m.home_team)}</span>
+          <span
+            className={`team${finished && m.winner === 'away' ? ' lost' : ''}`}
+          >
+            {teamWithFlag(m.home_team)}
+          </span>
           <span className="vs">
             {locked ? `${m.home_score ?? '–'} : ${m.away_score ?? '–'}` : 'vs'}
           </span>
-          <span className="team team-right">{teamWithFlag(m.away_team)}</span>
+          <span
+            className={`team team-right${finished && m.winner === 'home' ? ' lost' : ''}`}
+          >
+            {teamWithFlag(m.away_team)}
+          </span>
         </div>
 
         {finished && isKnockout(m.stage) && m.winner && m.winner !== 'draw' && (
@@ -328,11 +350,18 @@ export function MatchList({ poolId }: { poolId: string }) {
           </div>
         )}
 
+        {finished && (
+          <div className="result-line">
+            <ResultBadge correct={myCorrect} pts={myPts} />
+          </div>
+        )}
+
         {locked ? (
-          <div className="picks">
-            <div className="muted" style={{ fontSize: 12, marginBottom: 6 }}>
-              Pronósticos de la liga
-            </div>
+          <details className="picks">
+            <summary>
+              Pronósticos de la liga{' '}
+              <span className="hint">(hacé click para conocer todos los pronósticos)</span>
+            </summary>
             {members.map((mem) => {
               const out = picksByMatch[m.id]?.[mem.id];
               const isMe = mem.id === user?.id;
@@ -363,7 +392,7 @@ export function MatchList({ poolId }: { poolId: string }) {
                 </div>
               );
             })}
-          </div>
+          </details>
         ) : (
           <>
             <div className="outcomes">
