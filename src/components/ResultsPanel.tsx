@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Match } from '../lib/types';
 import { teamName, teamFlag } from '../lib/countries';
-import { isKnockout, stageLabel, roundLabel, formatKickoff } from '../lib/scoring';
+import { isKnockout, roundLabel, formatKickoff } from '../lib/scoring';
 
 // Owner-only panel to complete match results by hand (the free football API
 // marks matches FINISHED without a score). Writes via set_match_result, which
