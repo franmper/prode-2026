@@ -2,7 +2,7 @@
 // (round_first_kickoff / match_lock_at) from the migrations.
 // 1-X-2: correct outcome = 1 pt, wrong = 0.
 
-import type { Match, Outcome } from './types';
+import type { Match, Outcome, Prediction } from './types';
 
 // Argentina is UTC-3 year-round (no DST), so "midnight ARG" == 03:00 UTC.
 const ARG_TZ = 'America/Argentina/Buenos_Aires';
@@ -151,4 +151,101 @@ export function formatDeadline(d: Date): string {
     minute: '2-digit',
     hour12: false,
   }).format(new Date(d.getTime() - 60_000));
+}
+
+// ---------------------------------------------------------------------------
+//  Per-fecha (per-round) points breakdown for the leaderboard.
+//  A "round" is a Fecha (matchday) in the group stage, or a phase in the
+//  knockouts. Mirrors get_leaderboard's formula (stage weight × ×2 comodín),
+//  but computed client-side over finished matches only.
+// ---------------------------------------------------------------------------
+
+// Column header order: group fechas first (by matchday), then knockouts.
+const KNOCKOUT_ORDER: Record<string, number> = {
+  LAST_32: 101,
+  LAST_16: 102,
+  QUARTER_FINALS: 103,
+  SEMI_FINALS: 104,
+  THIRD_PLACE: 105,
+  FINAL: 106,
+};
+
+// Short header labels so the columns stay narrow.
+const KNOCKOUT_SHORT: Record<string, string> = {
+  LAST_32: 'R32',
+  LAST_16: 'R16',
+  QUARTER_FINALS: '4tos',
+  SEMI_FINALS: 'Semi',
+  THIRD_PLACE: '3°',
+  FINAL: 'Final',
+};
+
+export interface RoundColumn {
+  key: string; // 'GROUP_STAGE:1' | 'LAST_16' | …
+  order: number;
+  label: string; // short header, e.g. 'F1', 'R16'
+  title: string; // full name, e.g. 'Fecha 1', 'Octavos'
+}
+
+function roundKeyForMatch(m: Match): string {
+  if (m.stage === 'GROUP_STAGE') return `GROUP_STAGE:${m.matchday ?? 0}`;
+  return m.stage ?? 'OTHER';
+}
+
+function roundColumn(key: string): RoundColumn {
+  if (key.startsWith('GROUP_STAGE:')) {
+    const md = key.slice('GROUP_STAGE:'.length);
+    return { key, order: Number(md) || 0, label: `F${md}`, title: `Fecha ${md}` };
+  }
+  return {
+    key,
+    order: KNOCKOUT_ORDER[key] ?? 200,
+    label: KNOCKOUT_SHORT[key] ?? stageLabel(key),
+    title: stageLabel(key),
+  };
+}
+
+export interface RoundBreakdown {
+  // Ordered columns to render (only rounds with a finished match).
+  columns: RoundColumn[];
+  // points = byUser.get(userId)?.get(roundKey) ?? 0
+  byUser: Map<string, Map<string, number>>;
+}
+
+// Compute each player's points per round. `predictions` should be all visible
+// predictions (own + liga-mates' revealed after lock); `doubled` holds the
+// `${userId}|${matchId}` keys that have an active ×2.
+export function roundPointsBreakdown(
+  matches: Match[],
+  predictions: Prediction[],
+  stagePoints: Record<string, number>,
+  doubled: Set<string>,
+): RoundBreakdown {
+  const matchById = new Map(matches.map((m) => [m.id, m]));
+
+  // Columns come from finished matches, so a fecha shows up even if everyone
+  // scored 0 in it.
+  const cols = new Map<string, RoundColumn>();
+  for (const m of matches) {
+    if (m.status !== 'finished') continue;
+    const key = roundKeyForMatch(m);
+    if (!cols.has(key)) cols.set(key, roundColumn(key));
+  }
+  const columns = [...cols.values()].sort((a, b) => a.order - b.order);
+
+  const byUser = new Map<string, Map<string, number>>();
+  for (const p of predictions) {
+    const m = matchById.get(p.match_id);
+    if (!m || m.status !== 'finished') continue;
+    const base = matchPointsForMatch(p.predicted_outcome, m);
+    if (base === 0) continue;
+    const weight = stagePoints[m.stage ?? ''] ?? 1;
+    const mult = doubled.has(`${p.user_id}|${m.id}`) ? 2 : 1;
+    const key = roundKeyForMatch(m);
+    let row = byUser.get(p.user_id);
+    if (!row) byUser.set(p.user_id, (row = new Map()));
+    row.set(key, (row.get(key) ?? 0) + base * weight * mult);
+  }
+
+  return { columns, byUser };
 }
