@@ -111,16 +111,15 @@ export function ResultsPanel({ poolId }: Readonly<{ poolId: string }>) {
         </div>
       )}
 
-      <label
-        className="muted"
-        style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}
-      >
+      <label className="show-all-toggle">
         <input
           type="checkbox"
           checked={showAll}
           onChange={(ev) => setShowAll(ev.target.checked)}
         />
-        Mostrar todos los partidos (no solo los ya jugados)
+        <span className="muted">
+          Mostrar todos los partidos (no solo los ya jugados)
+        </span>
       </label>
 
       {visible.length === 0 && (
@@ -157,7 +156,8 @@ export function ResultsPanel({ poolId }: Readonly<{ poolId: string }>) {
 
             <div className="result-edit-row">
               <span className="re-team">
-                {flag(m.home_team)} {teamName(m.home_team)}
+                {flag(m.home_team)}
+                <span className="re-team-name">{teamName(m.home_team)}</span>
               </span>
 
               <input
@@ -179,7 +179,8 @@ export function ResultsPanel({ poolId }: Readonly<{ poolId: string }>) {
               />
 
               <span className="re-team re-team-right">
-                {teamName(m.away_team)} {flag(m.away_team)}
+                {flag(m.away_team)}
+                <span className="re-team-name">{teamName(m.away_team)}</span>
               </span>
             </div>
 
