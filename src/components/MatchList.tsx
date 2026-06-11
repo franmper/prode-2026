@@ -5,6 +5,7 @@ import type { Match, Prediction, Outcome } from '../lib/types';
 import { teamName, teamFlag } from '../lib/countries';
 import {
   matchPointsForMatch,
+  actualOutcomeForMatch,
   isKnockout,
   isLocked,
   formatKickoff,
@@ -274,6 +275,10 @@ export function MatchList({ poolId }: { poolId: string }) {
     const locked = isLocked(m, matches);
     const myPred = myPreds[m.id];
     const finished = m.status === 'finished';
+    // A finished match can still lack a recorded result (the free API marks it
+    // FINISHED before the score lands). Only score / show the badge once the
+    // outcome is actually known.
+    const hasResult = finished && actualOutcomeForMatch(m) != null;
     const doubled = myDoubles.has(m.id);
     const stage = m.stage ?? '';
     const cfg = dobleConfig[stage];
@@ -282,14 +287,14 @@ export function MatchList({ poolId }: { poolId: string }) {
       0,
       (cfg?.count ?? 0) - (mySpentByStage[stage] ?? 0),
     );
-    const myPts = finished && myPred
+    const myPts = hasResult && myPred
       ? matchPointsForMatch(myPred.predicted_outcome, m) *
         worth(m) *
         (doubled ? 2 : 1)
       : null;
-    // Did my pick land? Only meaningful once the match is finished.
+    // Did my pick land? Only meaningful once the result is known.
     const myCorrect =
-      finished && myPred
+      hasResult && myPred
         ? matchPointsForMatch(myPred.predicted_outcome, m) === 1
         : null;
     // Knockouts: pick who advances (no draw). Group stage: 1-X-2.
@@ -350,7 +355,7 @@ export function MatchList({ poolId }: { poolId: string }) {
           </div>
         )}
 
-        {finished && (
+        {hasResult && (
           <div className="result-line">
             <ResultBadge correct={myCorrect} pts={myPts} />
           </div>

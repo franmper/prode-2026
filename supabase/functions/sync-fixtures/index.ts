@@ -104,8 +104,30 @@ Deno.serve(async (req) => {
   const payload = (await res.json()) as { matches: FdMatch[] };
   const matches = payload.matches ?? [];
 
+  const supabase = createClient(supabaseUrl, serviceKey);
+
+  // A match is "complete" once it has a result recorded — a final score (group
+  // stage) or a decided winner (knockouts). The free football-data tier returns
+  // FINISHED with null scores, so results are entered by hand; we must never let
+  // a later sync overwrite a complete match back to nulls. Skip those api_ids.
+  const { data: existing, error: exErr } = await supabase
+    .from('matches')
+    .select('api_id, home_score, away_score, winner');
+  if (exErr) {
+    return json({ error: exErr.message }, 500);
+  }
+  const complete = new Set(
+    (existing ?? [])
+      .filter(
+        (m) =>
+          (m.home_score != null && m.away_score != null) || m.winner != null,
+      )
+      .map((m) => m.api_id),
+  );
+
   const rows = matches
     .filter((m) => m.homeTeam?.name && m.awayTeam?.name)
+    .filter((m) => !complete.has(m.id))
     .map((m) => ({
       api_id: m.id,
       stage: m.stage,
@@ -120,7 +142,6 @@ Deno.serve(async (req) => {
       status: mapStatus(m.status),
     }));
 
-  const supabase = createClient(supabaseUrl, serviceKey);
   const { error } = await supabase
     .from('matches')
     .upsert(rows, { onConflict: 'api_id' });
@@ -129,7 +150,11 @@ Deno.serve(async (req) => {
     return json({ error: error.message }, 500);
   }
 
-  return json({ synced: rows.length, total_from_api: matches.length });
+  return json({
+    synced: rows.length,
+    skipped_complete: complete.size,
+    total_from_api: matches.length,
+  });
   } catch (e) {
     // Surface the real error as JSON+CORS instead of an opaque 500.
     return json({ error: e instanceof Error ? e.message : String(e) }, 500);

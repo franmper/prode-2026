@@ -9,8 +9,9 @@ import { Leaderboard } from '../components/Leaderboard';
 import { MembersPanel } from '../components/MembersPanel';
 import { ScoringPanel } from '../components/ScoringPanel';
 import { RulesPanel } from '../components/RulesPanel';
+import { ResultsPanel } from '../components/ResultsPanel';
 
-type Tab = 'matches' | 'board' | 'rules' | 'members' | 'scoring';
+type Tab = 'matches' | 'board' | 'rules' | 'members' | 'scoring' | 'results';
 
 export function PoolDetail() {
   const { poolId } = useParams<{ poolId: string }>();
@@ -153,6 +154,14 @@ export function PoolDetail() {
             Puntajes
           </button>
         )}
+        {isOwner && (
+          <button
+            className={tab === 'results' ? 'active' : ''}
+            onClick={() => setTab('results')}
+          >
+            Resultados
+          </button>
+        )}
       </div>
 
       {tab === 'matches' && <MatchList poolId={pool.id} />}
@@ -176,6 +185,16 @@ export function PoolDetail() {
         <div className="card">
           <h3 style={{ marginTop: 0 }}>Puntajes por fase</h3>
           <ScoringPanel poolId={pool.id} />
+        </div>
+      )}
+      {tab === 'results' && isOwner && (
+        <div className="card">
+          <h3 style={{ marginTop: 0 }}>Cargar resultados</h3>
+          <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
+            Completá el marcador de cada partido. Una vez cargado, la
+            sincronización automática no lo pisa.
+          </p>
+          <ResultsPanel poolId={pool.id} />
         </div>
       )}
     </div>
