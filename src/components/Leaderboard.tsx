@@ -1,15 +1,26 @@
-import { useCallback, useEffect, useState } from 'react';
+import { Fragment, useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { roundPointsBreakdown, type RoundBreakdown } from '../lib/scoring';
+import {
+  emptyStat,
+  roundPointsBreakdown,
+  type RoundBreakdown,
+  type RoundColumn,
+  type UserBreakdown,
+} from '../lib/scoring';
 import type { LeaderboardRow, Match, Prediction } from '../lib/types';
 
 const EMPTY_BREAKDOWN: RoundBreakdown = { columns: [], byUser: new Map() };
+
+function pctOf(correct: number, finished: number): number | null {
+  return finished > 0 ? Math.round((correct / finished) * 100) : null;
+}
 
 export function Leaderboard({ poolId }: { poolId: string }) {
   const { user } = useAuth();
   const [rows, setRows] = useState<LeaderboardRow[]>([]);
   const [breakdown, setBreakdown] = useState<RoundBreakdown>(EMPTY_BREAKDOWN);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -44,6 +55,7 @@ export function Leaderboard({ poolId }: { poolId: string }) {
       []) {
       doubled.add(`${r.user_id}|${r.match_id}`);
     }
+
     setBreakdown(
       roundPointsBreakdown(
         (mRes.data as Match[]) ?? [],
@@ -71,10 +83,43 @@ export function Leaderboard({ poolId }: { poolId: string }) {
     };
   }, [load, poolId]);
 
+  const toggle = (userId: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(userId)) next.delete(userId);
+      else next.add(userId);
+      return next;
+    });
+
   if (loading) return <p className="muted">Cargando posiciones…</p>;
   if (error) return <div className="error">{error}</div>;
 
   const { columns, byUser } = breakdown;
+  // La "fecha actual" es la última ronda con partidos finalizados.
+  const current: RoundColumn | undefined = columns[columns.length - 1];
+
+  // Posición de cada jugador en cada fecha (ranking por puntos de esa ronda,
+  // con empates compartiendo posición).
+  const positionsByRound = new Map<string, Map<string, number>>();
+  for (const c of columns) {
+    const ranked = rows
+      .map((r) => ({
+        id: r.user_id,
+        pts: byUser.get(r.user_id)?.perRound.get(c.key)?.points ?? 0,
+      }))
+      .sort((a, b) => b.pts - a.pts);
+    const positions = new Map<string, number>();
+    let pos = 0;
+    let prevPts: number | null = null;
+    ranked.forEach((x, idx) => {
+      if (prevPts === null || x.pts !== prevPts) {
+        pos = idx + 1;
+        prevPts = x.pts;
+      }
+      positions.set(x.id, pos);
+    });
+    positionsByRound.set(c.key, positions);
+  }
 
   return (
     <div className="board-scroll">
@@ -83,44 +128,143 @@ export function Leaderboard({ poolId }: { poolId: string }) {
           <tr>
             <th className="rank">#</th>
             <th>Jugador</th>
-            <th className="num">Pts</th>
-            {columns.map((c) => (
-              <th key={c.key} className="num fecha" title={c.title}>
-                {c.label}
-              </th>
-            ))}
-            <th className="num" title="Aciertos / Pronósticos">Aciertos</th>
+            <th className="num total-pts">Pts</th>
+            <th className="num current-pts" title={current?.title ?? 'Fecha actual'}>
+              {current?.label ?? 'Fecha'}
+            </th>
+            <th className="caret-col" aria-label="Detalle" />
           </tr>
         </thead>
         <tbody>
           {rows.map((r, i) => {
-            const cells = byUser.get(r.user_id);
+            const stats = byUser.get(r.user_id);
+            const isOpen = expanded.has(r.user_id);
+            const currentPts = current
+              ? (stats?.perRound.get(current.key)?.points ?? 0)
+              : 0;
             return (
-              <tr key={r.user_id} className={r.user_id === user?.id ? 'me' : ''}>
-                <td className="rank">{i + 1}</td>
-                <td>{r.display_name}</td>
-                <td className="num">
-                  <strong>{r.points}</strong>
-                </td>
-                {columns.map((c) => {
-                  const pts = cells?.get(c.key) ?? 0;
-                  return (
-                    <td
-                      key={c.key}
-                      className={`num fecha${pts === 0 ? ' zero' : ''}`}
-                    >
-                      {pts}
+              <Fragment key={r.user_id}>
+                <tr
+                  className={`clickable${r.user_id === user?.id ? ' me' : ''}${
+                    isOpen ? ' open' : ''
+                  }`}
+                  onClick={() => toggle(r.user_id)}
+                >
+                  <td className="rank">{i + 1}</td>
+                  <td>{r.display_name}</td>
+                  <td className="num total-pts">
+                    <strong>{r.points}</strong>
+                  </td>
+                  <td
+                    className={`num current-pts${currentPts === 0 ? ' zero' : ''}`}
+                  >
+                    {currentPts}
+                  </td>
+                  <td className="caret-col">
+                    <span className={`caret${isOpen ? ' open' : ''}`}>▸</span>
+                  </td>
+                </tr>
+                {isOpen && (
+                  <tr className="stats-row">
+                    <td colSpan={5}>
+                      <StatsPanel
+                        breakdown={breakdown}
+                        stats={stats}
+                        row={r}
+                        positionsByRound={positionsByRound}
+                      />
                     </td>
-                  );
-                })}
-                <td className="num">
-                  {r.correct_count}/{r.predictions_count}
-                </td>
-              </tr>
+                  </tr>
+                )}
+              </Fragment>
             );
           })}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+function StatsPanel({
+  breakdown,
+  stats,
+  row,
+  positionsByRound,
+}: {
+  breakdown: RoundBreakdown;
+  stats: UserBreakdown | undefined;
+  row: LeaderboardRow;
+  positionsByRound: Map<string, Map<string, number>>;
+}) {
+  const { columns } = breakdown;
+  const total = stats?.total ?? emptyStat();
+  const totalPct = pctOf(total.correct, total.finished);
+  const currentKey = columns[columns.length - 1]?.key;
+
+  return (
+    <div className="stats-panel">
+      <div className="stats-summary">
+        <div className="stat-box">
+          <span className="stat-label">Aciertos</span>
+          <span className="stat-value">
+            {total.correct}
+            <span className="stat-sub">/{total.finished}</span>
+          </span>
+        </div>
+        <div className="stat-box">
+          <span className="stat-label">Efectividad</span>
+          <span className="stat-value">
+            {totalPct !== null ? `${totalPct}%` : '—'}
+          </span>
+        </div>
+        <div className="stat-box">
+          <span className="stat-label">Puntos</span>
+          <span className="stat-value">{row.points}</span>
+        </div>
+      </div>
+
+      {columns.length > 0 ? (
+        <div className="rounds-list">
+          {columns.map((c) => {
+            const s = stats?.perRound.get(c.key) ?? emptyStat();
+            const p = pctOf(s.correct, s.finished);
+            const pos = positionsByRound.get(c.key)?.get(row.user_id);
+            return (
+              <div
+                key={c.key}
+                className={`round-card${c.key === currentKey ? ' current' : ''}`}
+              >
+                <div className="round-card-title">{c.title}</div>
+                <div className="round-card-stats">
+                  <div className="mini-stat">
+                    <span className="mini-label">Pos.</span>
+                    <span className="mini-value">{pos ? `${pos}°` : '—'}</span>
+                  </div>
+                  <div className="mini-stat">
+                    <span className="mini-label">Aciertos</span>
+                    <span className="mini-value">
+                      {s.correct}
+                      <span className="stat-sub">/{s.finished}</span>
+                    </span>
+                  </div>
+                  <div className="mini-stat">
+                    <span className="mini-label">Efec.</span>
+                    <span className="mini-value">
+                      {p !== null ? `${p}%` : '—'}
+                    </span>
+                  </div>
+                  <div className="mini-stat">
+                    <span className="mini-label">Pts</span>
+                    <span className="mini-value">{s.points}</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <p className="muted">Todavía no hay partidos finalizados.</p>
+      )}
     </div>
   );
 }

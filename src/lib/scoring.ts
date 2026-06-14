@@ -205,14 +205,30 @@ function roundColumn(key: string): RoundColumn {
   };
 }
 
+// Per-round (and total) stats for one player.
+export interface RoundStat {
+  points: number; // points scored (stage weight × ×2 comodín)
+  correct: number; // aciertos
+  finished: number; // pronósticos sobre partidos finalizados
+}
+
+export function emptyStat(): RoundStat {
+  return { points: 0, correct: 0, finished: 0 };
+}
+
+export interface UserBreakdown {
+  perRound: Map<string, RoundStat>; // roundKey -> stat
+  total: RoundStat;
+}
+
 export interface RoundBreakdown {
   // Ordered columns to render (only rounds with a finished match).
   columns: RoundColumn[];
-  // points = byUser.get(userId)?.get(roundKey) ?? 0
-  byUser: Map<string, Map<string, number>>;
+  // stats = byUser.get(userId)
+  byUser: Map<string, UserBreakdown>;
 }
 
-// Compute each player's points per round. `predictions` should be all visible
+// Compute each player's stats per round. `predictions` should be all visible
 // predictions (own + liga-mates' revealed after lock); `doubled` holds the
 // `${userId}|${matchId}` keys that have an active ×2.
 export function roundPointsBreakdown(
@@ -233,18 +249,28 @@ export function roundPointsBreakdown(
   }
   const columns = [...cols.values()].sort((a, b) => a.order - b.order);
 
-  const byUser = new Map<string, Map<string, number>>();
+  const byUser = new Map<string, UserBreakdown>();
   for (const p of predictions) {
     const m = matchById.get(p.match_id);
     if (!m || m.status !== 'finished') continue;
+    const key = roundKeyForMatch(m);
+
+    let user = byUser.get(p.user_id);
+    if (!user) byUser.set(p.user_id, (user = { perRound: new Map(), total: emptyStat() }));
+    let stat = user.perRound.get(key);
+    if (!stat) user.perRound.set(key, (stat = emptyStat()));
+
     const base = matchPointsForMatch(p.predicted_outcome, m);
-    if (base === 0) continue;
     const weight = stagePoints[m.stage ?? ''] ?? 1;
     const mult = doubled.has(`${p.user_id}|${m.id}`) ? 2 : 1;
-    const key = roundKeyForMatch(m);
-    let row = byUser.get(p.user_id);
-    if (!row) byUser.set(p.user_id, (row = new Map()));
-    row.set(key, (row.get(key) ?? 0) + base * weight * mult);
+    const pts = base * weight * mult;
+
+    stat.finished += 1;
+    stat.correct += base; // base is 1 on a correct pick, 0 otherwise
+    stat.points += pts;
+    user.total.finished += 1;
+    user.total.correct += base;
+    user.total.points += pts;
   }
 
   return { columns, byUser };

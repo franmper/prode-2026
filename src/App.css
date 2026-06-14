@@ -458,3 +458,104 @@ table.board th.fecha, table.board td.fecha {
   font-size: 13px;
 }
 table.board td.fecha.zero { color: var(--muted); }
+table.board th.total-pts, table.board td.total-pts { padding-right: 2px; }
+table.board th.current-pts, table.board td.current-pts { padding-left: 2px; }
+table.board td.total-pts strong {
+  font-size: 17px;
+}
+table.board td.current-pts {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+table.board tr.clickable { cursor: pointer; }
+table.board tr.clickable:hover td { background: rgba(255, 255, 255, 0.04); }
+table.board tr.clickable.open td { background: rgba(255, 255, 255, 0.05); }
+table.board th.caret-col, table.board td.caret-col {
+  width: 40px;
+  text-align: center;
+  padding-left: 0;
+  padding-right: 8px;
+}
+.caret {
+  display: inline-block;
+  color: var(--muted);
+  font-size: 28px;
+  transition: transform 0.15s ease;
+}
+.caret.open { transform: rotate(90deg); }
+
+table.board tr.stats-row td { padding: 0; }
+.stats-panel {
+  padding: 14px;
+  background: rgba(0, 0, 0, 0.18);
+}
+.stats-summary {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.stat-box {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  min-width: 90px;
+}
+.stat-label {
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.stat-value { font-size: 19px; font-weight: 700; }
+.stat-sub { font-size: 13px; font-weight: 500; color: var(--muted); }
+
+.rounds-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.round-card {
+  padding: 10px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+.round-card.current {
+  background: rgba(0, 195, 137, 0.08);
+  border-color: rgba(0, 195, 137, 0.25);
+}
+.round-card-title {
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.round-card-stats {
+  display: flex;
+  gap: 6px;
+}
+.mini-stat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px 8px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.05);
+}
+.mini-label {
+  font-size: 9px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.mini-value {
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
