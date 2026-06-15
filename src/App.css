@@ -467,6 +467,14 @@ table.board td.current-pts {
   font-size: 13px;
   color: var(--muted);
 }
+table.board th.pron, table.board td.pron {
+  width: 40px;
+  padding-left: 4px;
+  padding-right: 4px;
+  font-size: 13px;
+  color: var(--muted);
+}
+table.board td.pron.zero { color: var(--border); }
 
 table.board tr.clickable { cursor: pointer; }
 table.board tr.clickable:hover td { background: rgba(255, 255, 255, 0.04); }

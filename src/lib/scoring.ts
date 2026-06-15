@@ -185,6 +185,7 @@ export interface RoundColumn {
   order: number;
   label: string; // short header, e.g. 'F1', 'R16'
   title: string; // full name, e.g. 'Fecha 1', 'Octavos'
+  matchCount: number; // total matches in this round (any status)
 }
 
 function roundKeyForMatch(m: Match): string {
@@ -192,16 +193,17 @@ function roundKeyForMatch(m: Match): string {
   return m.stage ?? 'OTHER';
 }
 
-function roundColumn(key: string): RoundColumn {
+function roundColumn(key: string, matchCount: number): RoundColumn {
   if (key.startsWith('GROUP_STAGE:')) {
     const md = key.slice('GROUP_STAGE:'.length);
-    return { key, order: Number(md) || 0, label: `F${md}`, title: `Fecha ${md}` };
+    return { key, order: Number(md) || 0, label: `F${md}`, title: `Fecha ${md}`, matchCount };
   }
   return {
     key,
     order: KNOCKOUT_ORDER[key] ?? 200,
     label: KNOCKOUT_SHORT[key] ?? stageLabel(key),
     title: stageLabel(key),
+    matchCount,
   };
 }
 
@@ -210,10 +212,11 @@ export interface RoundStat {
   points: number; // points scored (stage weight × ×2 comodín)
   correct: number; // aciertos
   finished: number; // pronósticos sobre partidos finalizados
+  made: number; // pronósticos hechos (cualquier estado visible)
 }
 
 export function emptyStat(): RoundStat {
-  return { points: 0, correct: 0, finished: 0 };
+  return { points: 0, correct: 0, finished: 0, made: 0 };
 }
 
 export interface UserBreakdown {
@@ -239,26 +242,39 @@ export function roundPointsBreakdown(
 ): RoundBreakdown {
   const matchById = new Map(matches.map((m) => [m.id, m]));
 
+  // Total matches per round (any status) — denominator for "pronósticos hechos".
+  const matchCount = new Map<string, number>();
+  for (const m of matches) {
+    const key = roundKeyForMatch(m);
+    matchCount.set(key, (matchCount.get(key) ?? 0) + 1);
+  }
+
   // Columns come from finished matches, so a fecha shows up even if everyone
   // scored 0 in it.
   const cols = new Map<string, RoundColumn>();
   for (const m of matches) {
     if (m.status !== 'finished') continue;
     const key = roundKeyForMatch(m);
-    if (!cols.has(key)) cols.set(key, roundColumn(key));
+    if (!cols.has(key)) cols.set(key, roundColumn(key, matchCount.get(key) ?? 0));
   }
   const columns = [...cols.values()].sort((a, b) => a.order - b.order);
 
   const byUser = new Map<string, UserBreakdown>();
   for (const p of predictions) {
     const m = matchById.get(p.match_id);
-    if (!m || m.status !== 'finished') continue;
+    if (!m) continue;
     const key = roundKeyForMatch(m);
 
     let user = byUser.get(p.user_id);
     if (!user) byUser.set(p.user_id, (user = { perRound: new Map(), total: emptyStat() }));
     let stat = user.perRound.get(key);
     if (!stat) user.perRound.set(key, (stat = emptyStat()));
+
+    // Every visible pick counts toward "pronósticos hechos".
+    stat.made += 1;
+    user.total.made += 1;
+
+    if (m.status !== 'finished') continue;
 
     const base = matchPointsForMatch(p.predicted_outcome, m);
     const weight = stagePoints[m.stage ?? ''] ?? 1;

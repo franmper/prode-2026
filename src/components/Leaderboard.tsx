@@ -132,6 +132,9 @@ export function Leaderboard({ poolId }: { poolId: string }) {
             <th className="num current-pts" title={current?.title ?? 'Fecha actual'}>
               {current?.label ?? 'Fecha'}
             </th>
+            <th className="num pron" title="Pronósticos hechos">
+              Pron.
+            </th>
             <th className="caret-col" aria-label="Detalle" />
           </tr>
         </thead>
@@ -160,17 +163,21 @@ export function Leaderboard({ poolId }: { poolId: string }) {
                   >
                     {currentPts}
                   </td>
+                  <td className={`num pron${r.predictions_count === 0 ? ' zero' : ''}`}>
+                    {r.predictions_count}
+                  </td>
                   <td className="caret-col">
                     <span className={`caret${isOpen ? ' open' : ''}`}>▸</span>
                   </td>
                 </tr>
                 {isOpen && (
                   <tr className="stats-row">
-                    <td colSpan={5}>
+                    <td colSpan={6}>
                       <StatsPanel
                         breakdown={breakdown}
                         stats={stats}
                         row={r}
+                        rank={i + 1}
                         positionsByRound={positionsByRound}
                       />
                     </td>
@@ -189,11 +196,13 @@ function StatsPanel({
   breakdown,
   stats,
   row,
+  rank,
   positionsByRound,
 }: {
   breakdown: RoundBreakdown;
   stats: UserBreakdown | undefined;
   row: LeaderboardRow;
+  rank: number;
   positionsByRound: Map<string, Map<string, number>>;
 }) {
   const { columns } = breakdown;
@@ -203,6 +212,16 @@ function StatsPanel({
 
   return (
     <div className="stats-panel">
+      <div className="stats-summary">
+        <div className="stat-box">
+          <span className="stat-label">Pos.</span>
+          <span className="stat-value">{rank}°</span>
+        </div>
+        <div className="stat-box">
+          <span className="stat-label">Puntos</span>
+          <span className="stat-value">{row.points}</span>
+        </div>
+      </div>
       <div className="stats-summary">
         <div className="stat-box">
           <span className="stat-label">Aciertos</span>
@@ -218,8 +237,8 @@ function StatsPanel({
           </span>
         </div>
         <div className="stat-box">
-          <span className="stat-label">Puntos</span>
-          <span className="stat-value">{row.points}</span>
+          <span className="stat-label">Pronósticos</span>
+          <span className="stat-value">{row.predictions_count}</span>
         </div>
       </div>
 
@@ -239,6 +258,13 @@ function StatsPanel({
                   <div className="mini-stat">
                     <span className="mini-label">Pos.</span>
                     <span className="mini-value">{pos ? `${pos}°` : '—'}</span>
+                  </div>
+                  <div className="mini-stat">
+                    <span className="mini-label">Pron.</span>
+                    <span className="mini-value">
+                      {s.made}
+                      <span className="stat-sub">/{c.matchCount}</span>
+                    </span>
                   </div>
                   <div className="mini-stat">
                     <span className="mini-label">Aciertos</span>
