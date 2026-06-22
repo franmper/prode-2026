@@ -21,6 +21,8 @@ export function Leaderboard({ poolId }: { poolId: string }) {
   const [rows, setRows] = useState<LeaderboardRow[]>([]);
   const [breakdown, setBreakdown] = useState<RoundBreakdown>(EMPTY_BREAKDOWN);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  // Orden de la tabla: por puntos totales (default) o por puntos de la fecha.
+  const [sortBy, setSortBy] = useState<'total' | 'current'>('total');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -98,6 +100,19 @@ export function Leaderboard({ poolId }: { poolId: string }) {
   // La "fecha actual" es la última ronda con partidos finalizados.
   const current: RoundColumn | undefined = columns[columns.length - 1];
 
+  // Puntos de la fecha actual para un jugador.
+  const currentPtsFor = (r: LeaderboardRow) =>
+    current ? (byUser.get(r.user_id)?.perRound.get(current.key)?.points ?? 0) : 0;
+
+  // `rows` ya viene ordenado por puntos totales (RPC). Si se pide ordenar por
+  // la fecha, reordenamos por sus puntos (desempate por totales).
+  const sortByCurrent = sortBy === 'current' && !!current;
+  const sortedRows = sortByCurrent
+    ? [...rows].sort(
+        (a, b) => currentPtsFor(b) - currentPtsFor(a) || b.points - a.points,
+      )
+    : rows;
+
   // Posición de cada jugador en cada fecha (ranking por puntos de esa ronda,
   // con empates compartiendo posición).
   const positionsByRound = new Map<string, Map<string, number>>();
@@ -128,9 +143,29 @@ export function Leaderboard({ poolId }: { poolId: string }) {
           <tr>
             <th className="rank">#</th>
             <th>Jugador</th>
-            <th className="num total-pts">Pts</th>
-            <th className="num current-pts" title={current?.title ?? 'Fecha actual'}>
+            <th
+              className={`num total-pts sortable${sortBy === 'total' ? ' sorted' : ''}`}
+              aria-sort={sortBy === 'total' ? 'descending' : 'none'}
+              title="Ordenar por puntos totales"
+              onClick={() => setSortBy('total')}
+            >
+              Pts
+              {sortBy === 'total' && <span className="sort-arrow">▾</span>}
+            </th>
+            <th
+              className={`num current-pts${current ? ' sortable' : ''}${
+                sortByCurrent ? ' sorted' : ''
+              }`}
+              aria-sort={sortByCurrent ? 'descending' : 'none'}
+              title={
+                current
+                  ? `Ordenar por puntos de ${current.title}`
+                  : 'Fecha actual'
+              }
+              onClick={() => current && setSortBy('current')}
+            >
               {current?.label ?? 'Fecha'}
+              {sortByCurrent && <span className="sort-arrow">▾</span>}
             </th>
             <th className="num pron" title="Pronósticos hechos">
               Pron.
@@ -139,12 +174,10 @@ export function Leaderboard({ poolId }: { poolId: string }) {
           </tr>
         </thead>
         <tbody>
-          {rows.map((r, i) => {
+          {sortedRows.map((r, i) => {
             const stats = byUser.get(r.user_id);
             const isOpen = expanded.has(r.user_id);
-            const currentPts = current
-              ? (stats?.perRound.get(current.key)?.points ?? 0)
-              : 0;
+            const currentPts = currentPtsFor(r);
             return (
               <Fragment key={r.user_id}>
                 <tr

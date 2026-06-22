@@ -455,6 +455,10 @@ table.board th, table.board td {
   font-size: 14px;
 }
 table.board th { color: var(--muted); font-weight: 600; }
+table.board th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+table.board th.sortable:hover { color: var(--text); }
+table.board th.sorted { color: var(--brand); }
+.sort-arrow { font-size: 9px; margin-left: 2px; vertical-align: middle; }
 table.board td.num, table.board th.num { text-align: center; }
 table.board tr.me td { background: rgba(0, 195, 137, 0.08); }
 table.board .rank { color: var(--muted); width: 28px; }
