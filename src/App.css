@@ -100,6 +100,15 @@
   margin-bottom: 16px;
   display: flex;
   justify-content: space-between;
+  gap: 8px;
+}
+/* Keep the points/×2/live pills on one line; let the left label shrink. */
+.match .meta > span:first-child { min-width: 0; }
+.match .meta-pills {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 .match .matchup {
   display: grid;
@@ -198,6 +207,7 @@
   border-bottom: 2px solid var(--brand);
   padding-bottom: 6px;
 }
+.today-card .phase-title { color: var(--brand); }
 .phase-title.toggle {
   cursor: pointer;
   user-select: none;

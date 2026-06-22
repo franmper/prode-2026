@@ -8,6 +8,7 @@ import {
   actualOutcomeForMatch,
   isKnockout,
   isLocked,
+  isToday,
   formatKickoff,
   roundLabel,
   groupLabel,
@@ -311,7 +312,7 @@ export function MatchList({ poolId }: { poolId: string }) {
             {' — '}
             {formatKickoff(m.kickoff_at)}
           </span>
-          <span>
+          <span className="meta-pills">
             <span className="pill worth" title="Puntos por acertar este partido">
               {worth(m)} {worth(m) === 1 ? 'pt' : 'pts'}
             </span>
@@ -514,13 +515,23 @@ export function MatchList({ poolId }: { poolId: string }) {
     }
   }
 
-  // Default tab: first section that still has a pronosticable match; if every
+  // Default tab: prefer the Fecha/fase that has a match being played today;
+  // else the first section that still has a pronosticable match; if every
   // match is locked, land on the last (most recent) section instead.
+  const sectionHasToday = (s: Section) =>
+    s.matches.some((m) => isToday(m.kickoff_at));
   const sectionHasOpen = (s: Section) =>
     s.matches.some((m) => !isLocked(m, matches));
-  const defaultSection = sections.find(sectionHasOpen) ?? sections.at(-1)!;
+  const defaultSection =
+    sections.find(sectionHasToday) ??
+    sections.find(sectionHasOpen) ??
+    sections.at(-1)!;
   const active =
     sections.find((s) => s.key === activeKey) ?? defaultSection;
+
+  // Today's matches break out into their own wrapper at the top; the fecha
+  // listing below still shows the full round (today's included).
+  const todayMatches = active.matches.filter((m) => isToday(m.kickoff_at));
 
   return (
     <div>
@@ -542,6 +553,13 @@ export function MatchList({ poolId }: { poolId: string }) {
           </button>
         ))}
       </div>
+
+      {todayMatches.length > 0 && (
+        <section className="card today-card">
+          <h3 className="phase-title">Hoy</h3>
+          {todayMatches.map(renderMatch)}
+        </section>
+      )}
 
       <section className="card">
         <h3 className="phase-title">{active.title}</h3>

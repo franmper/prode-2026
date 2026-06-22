@@ -95,6 +95,21 @@ export function isLocked(match: Match, all: Match[]): boolean {
   return match.status !== 'scheduled' || Date.now() >= lockAt(match, all).getTime();
 }
 
+// The ARG calendar day (YYYY-MM-DD) for an instant; defaults to "now".
+export function argDay(d: Date = new Date()): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: ARG_TZ,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(d);
+}
+
+// True if the kickoff falls on the current ARG calendar day.
+export function isToday(iso: string): boolean {
+  return argDay(new Date(iso)) === argDay();
+}
+
 const STAGE_ES: Record<string, string> = {
   GROUP_STAGE: 'Fase de grupos',
   LAST_32: 'Dieciseisavos',

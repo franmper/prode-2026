@@ -99,9 +99,11 @@ export function ResultsPanel({ poolId }: Readonly<{ poolId: string }>) {
   if (loading) return <p className="muted">Cargando partidos…</p>;
 
   const now = Date.now();
-  const visible = matches.filter(
-    (m) => showAll || new Date(m.kickoff_at).getTime() <= now,
-  );
+  // Most recent kickoff first: the matches awaiting a result are the ones just
+  // played, so surface them at the top.
+  const visible = matches
+    .filter((m) => showAll || new Date(m.kickoff_at).getTime() <= now)
+    .reverse();
 
   return (
     <div>
