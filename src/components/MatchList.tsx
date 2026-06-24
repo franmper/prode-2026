@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, selectAll } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import type { Match, Prediction, Outcome } from '../lib/types';
 import { teamName, teamFlag } from '../lib/countries';
@@ -96,7 +96,9 @@ export function MatchList({ poolId }: { poolId: string }) {
   const load = useCallback(async () => {
     const [mRes, pRes, pmRes, spRes, psRes, mdRes] = await Promise.all([
       supabase.from('matches').select('*').order('kickoff_at'),
-      supabase.from('predictions').select('*'),
+      selectAll<Prediction>(() =>
+        supabase.from('predictions').select('*').order('id'),
+      ),
       supabase.from('pool_members').select('user_id').eq('pool_id', poolId),
       supabase
         .from('pool_stage_points')
@@ -161,7 +163,7 @@ export function MatchList({ poolId }: { poolId: string }) {
     // visible ones from this liga's members feed the post-lock reveal.
     const mine: Record<string, Prediction> = {};
     const picks: Record<string, Record<string, Outcome>> = {};
-    for (const row of (pRes.data as Prediction[]) ?? []) {
+    for (const row of pRes.data) {
       if (row.user_id === user?.id) mine[row.match_id] = row;
       if (memberSet.has(row.user_id)) {
         (picks[row.match_id] ??= {})[row.user_id] = row.predicted_outcome;

@@ -60,28 +60,38 @@ export function matchPointsForMatch(
 
 // First kickoff of the round this match belongs to.
 // Group stage: earliest match sharing the same matchday (Fecha).
-// Knockouts: the match itself (rolling, per-match).
+// Knockouts: earliest match of the same phase (Stage) — the whole phase
+// locks together, just like a group-stage Fecha.
 function roundFirstKickoff(match: Match, all: Match[]): string {
+  // Which matches lock together with this one: same Fecha in the group stage,
+  // same phase in the knockouts.
+  let sameRound: ((x: Match) => boolean) | null = null;
   if (match.stage === 'GROUP_STAGE' && match.matchday != null) {
-    let first = match.kickoff_at;
-    for (const x of all) {
-      if (
-        x.stage === 'GROUP_STAGE' &&
-        x.matchday === match.matchday &&
-        x.kickoff_at < first
-      ) {
-        first = x.kickoff_at;
-      }
-    }
-    return first;
+    sameRound = (x) =>
+      x.stage === 'GROUP_STAGE' && x.matchday === match.matchday;
+  } else if (match.stage && match.stage !== 'GROUP_STAGE') {
+    sameRound = (x) => x.stage === match.stage;
   }
-  return match.kickoff_at;
+  if (!sameRound) return match.kickoff_at;
+
+  let first = match.kickoff_at;
+  for (const x of all) {
+    if (sameRound(x) && x.kickoff_at < first) first = x.kickoff_at;
+  }
+  return first;
 }
 
-// Predictions lock at midnight (ARG) of the day the round starts —
-// i.e. you can edit until 23:59 ARG the day before.
+// When predictions lock.
+// Group stage: midnight (ARG) of the day the round starts — i.e. editable
+//   until 23:59 ARG the day before.
+// Knockouts: one hour before the first match of the phase.
 export function lockAt(match: Match, all: Match[]): Date {
   const first = new Date(roundFirstKickoff(match, all));
+  // Anything that isn't the group stage (incl. a null stage) locks 1h before
+  // the phase's first match — mirrors match_lock_at's `else` branch in SQL.
+  if (match.stage !== 'GROUP_STAGE') {
+    return new Date(first.getTime() - 60 * 60 * 1000); // 1h before kickoff
+  }
   const argDay = new Intl.DateTimeFormat('en-CA', {
     timeZone: ARG_TZ,
     year: 'numeric',

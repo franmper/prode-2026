@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, selectAll } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import {
   emptyStat,
@@ -30,7 +30,9 @@ export function Leaderboard({ poolId }: { poolId: string }) {
     const [lbRes, mRes, pRes, spRes, mdRes] = await Promise.all([
       supabase.rpc('get_leaderboard', { p_pool_id: poolId }),
       supabase.from('matches').select('*'),
-      supabase.from('predictions').select('*'),
+      selectAll<Prediction>(() =>
+        supabase.from('predictions').select('*').order('id'),
+      ),
       supabase
         .from('pool_stage_points')
         .select('stage, points')
@@ -61,7 +63,7 @@ export function Leaderboard({ poolId }: { poolId: string }) {
     setBreakdown(
       roundPointsBreakdown(
         (mRes.data as Match[]) ?? [],
-        (pRes.data as Prediction[]) ?? [],
+        pRes.data,
         stagePoints,
         doubled,
       ),
