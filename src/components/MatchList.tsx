@@ -403,7 +403,12 @@ export function MatchList({ poolId }: { poolId: string }) {
           </details>
         ) : (
           <>
-            <div className="outcomes">
+            <div
+              className="outcomes"
+              style={{
+                gridTemplateColumns: `repeat(${options.length}, 1fr)`,
+              }}
+            >
               {options.map((o) => (
                 <button
                   key={o}
