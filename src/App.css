@@ -581,3 +581,67 @@ table.board tr.stats-row td { padding: 0; }
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
+
+/* --- Crear partido a mano (CreateMatchPanel) --- */
+.create-match-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+.cm-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+.create-match-form select,
+.create-match-form input {
+  font: inherit;
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+}
+.create-match-form select:focus,
+.create-match-form input:focus {
+  outline: 2px solid var(--brand);
+  border-color: transparent;
+}
+.cm-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.cm-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  background: var(--bg);
+}
+.cm-row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.cm-teams {
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.cm-teams .flag {
+  width: 22px;
+  height: 16px;
+  vertical-align: middle;
+}

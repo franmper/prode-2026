@@ -11,6 +11,8 @@ export function ResultsPanel({ poolId }: Readonly<{ poolId: string }>) {
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [syncingId, setSyncingId] = useState<string | null>(null);
+  const [syncMsg, setSyncMsg] = useState<{ id: string; text: string } | null>(null);
   const [error, setError] = useState('');
   const [okId, setOkId] = useState<string | null>(null);
   // Only show matches already kicked off (the ones that need a result).
@@ -89,6 +91,37 @@ export function ResultsPanel({ poolId }: Readonly<{ poolId: string }>) {
       await load();
     }
     setSavingId(null);
+  }
+
+  // Pull just this match from the API (status/winner, and the score on the paid
+  // tier). Only matches that exist in the API (api_id set) can be synced.
+  async function syncOne(m: Match) {
+    if (m.api_id == null) return;
+    setSyncingId(m.id);
+    setError('');
+    setSyncMsg(null);
+
+    const { data, error: e } = await supabase.functions.invoke('sync-fixtures', {
+      body: { api_id: m.api_id },
+    });
+    if (e) {
+      // The function returns its own JSON error body on non-2xx.
+      let detail = e.message;
+      try {
+        const body = await (e as { context?: Response }).context?.json();
+        if (body?.error) detail = body.error;
+      } catch {
+        /* keep generic message */
+      }
+      setError(`Error al sincronizar: ${detail}`);
+    } else {
+      // synced > 0 → the API row was written; otherwise nothing changed (match
+      // already complete, or the API had no data for it yet).
+      const text = data?.synced ? '✓ Sincronizado' : 'Sin cambios';
+      setSyncMsg({ id: m.id, text });
+      await load();
+    }
+    setSyncingId(null);
   }
 
   const flag = (raw: string | null | undefined) => {
@@ -214,9 +247,24 @@ export function ResultsPanel({ poolId }: Readonly<{ poolId: string }>) {
               >
                 {savingId === m.id ? 'Guardando…' : 'Guardar resultado'}
               </button>
+              {m.api_id != null && (
+                <button
+                  className="ghost"
+                  disabled={syncingId === m.id}
+                  onClick={() => syncOne(m)}
+                  title="Traer el dato de este partido desde la API"
+                >
+                  {syncingId === m.id ? 'Sincronizando…' : 'Sincronizar'}
+                </button>
+              )}
               {okId === m.id && (
                 <span className="muted" style={{ fontSize: 12 }}>
                   ✓ Guardado
+                </span>
+              )}
+              {syncMsg?.id === m.id && (
+                <span className="muted" style={{ fontSize: 12 }}>
+                  {syncMsg.text}
                 </span>
               )}
             </div>

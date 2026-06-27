@@ -44,6 +44,67 @@ interface FdMatch {
   };
 }
 
+// A match is "complete" once it has a result recorded — a final score (group
+// stage) or a decided winner (knockouts).
+interface ExistingMatch {
+  id: string;
+  api_id: number | null;
+  home_team: string | null;
+  away_team: string | null;
+  home_score: number | null;
+  away_score: number | null;
+  winner: string | null;
+}
+
+function isComplete(m: ExistingMatch): boolean {
+  return (m.home_score != null && m.away_score != null) || m.winner != null;
+}
+
+// Does the API payload carry an actual result for this match (a final score or
+// a decided winner)? The single-match endpoint returns real scores even on the
+// free tier, so this lets a per-match sync overwrite a hand-entered result —
+// but only when there's something real to write (never wipe it back to null).
+function apiHasResult(m: FdMatch): boolean {
+  return (
+    (m.score?.fullTime?.home != null && m.score?.fullTime?.away != null) ||
+    m.score?.winner != null
+  );
+}
+
+const teamKey = (h: string | null, a: string | null) =>
+  `${(h ?? '').trim().toLowerCase()}|${(a ?? '').trim().toLowerCase()}`;
+
+// Owner-created matches (api_id NULL) are "adopted" when the API finally brings
+// the same fixture: we stamp our row with the real api_id, matched by the two
+// team names, so the upsert updates it in place instead of inserting a copy.
+// A manually-completed match stays manual (we don't auto-merge a result).
+function planClaims(
+  existing: ExistingMatch[],
+  apiMatches: FdMatch[],
+): { id: string; api_id: number }[] {
+  const knownApiIds = new Set(
+    existing.map((m) => m.api_id).filter((v) => v != null),
+  );
+  const manualByTeams = new Map<string, string>();
+  for (const m of existing) {
+    if (m.api_id == null && !isComplete(m)) {
+      manualByTeams.set(teamKey(m.home_team, m.away_team), m.id);
+    }
+  }
+
+  const claims: { id: string; api_id: number }[] = [];
+  for (const m of apiMatches) {
+    if (!m.homeTeam?.name || !m.awayTeam?.name || knownApiIds.has(m.id)) continue;
+    const key = teamKey(m.homeTeam.name, m.awayTeam.name);
+    const localId = manualByTeams.get(key);
+    if (localId) {
+      claims.push({ id: localId, api_id: m.id });
+      manualByTeams.delete(key); // one-to-one
+    }
+  }
+  return claims;
+}
+
 function mapStatus(s: FdStatus): 'scheduled' | 'live' | 'finished' {
   if (s === 'FINISHED' || s === 'AWARDED') return 'finished';
   if (s === 'IN_PLAY' || s === 'PAUSED') return 'live';
@@ -74,6 +135,43 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
+// Optional request body: { api_id } restricts the sync to that single match
+// (used by the per-match "Sincronizar" button). No body → full sync.
+async function readSingleApiId(req: Request): Promise<number | null> {
+  try {
+    const body = await req.json();
+    return typeof body?.api_id === 'number' ? body.api_id : null;
+  } catch {
+    return null; // no body
+  }
+}
+
+// Pull matches from football-data.org: the whole competition, or just one match
+// when singleApiId is given. Returns an error Response on a non-2xx API reply.
+async function fetchFixtures(
+  apiKey: string,
+  singleApiId: number | null,
+): Promise<{ error: Response } | { matches: FdMatch[] }> {
+  const url = singleApiId == null
+    ? `https://api.football-data.org/v4/competitions/${COMPETITION}/matches`
+    : `https://api.football-data.org/v4/matches/${singleApiId}`;
+
+  const res = await fetch(url, { headers: { 'X-Auth-Token': apiKey } });
+  if (!res.ok) {
+    return {
+      error: json({ error: `Football API ${res.status}`, body: await res.text() }, 502),
+    };
+  }
+
+  // The list endpoint wraps matches in { matches: [...] }; the single-match
+  // endpoint returns the match resource at the top level.
+  const payload = await res.json();
+  if (singleApiId == null) {
+    return { matches: (payload?.matches as FdMatch[]) ?? [] };
+  }
+  return { matches: payload?.id ? [payload as FdMatch] : [] };
+}
+
 Deno.serve(async (req) => {
   // Browser preflight
   if (req.method === 'OPTIONS') {
@@ -89,45 +187,57 @@ Deno.serve(async (req) => {
     return json({ error: 'Missing FOOTBALL_API_KEY or Supabase env' }, 500);
   }
 
-  const res = await fetch(
-    `https://api.football-data.org/v4/competitions/${COMPETITION}/matches`,
-    { headers: { 'X-Auth-Token': apiKey } },
-  );
-
-  if (!res.ok) {
-    return json(
-      { error: `Football API ${res.status}`, body: await res.text() },
-      502,
-    );
+  const singleApiId = await readSingleApiId(req);
+  const fetched = await fetchFixtures(apiKey, singleApiId);
+  if ('error' in fetched) {
+    return fetched.error;
   }
-
-  const payload = (await res.json()) as { matches: FdMatch[] };
-  const matches = payload.matches ?? [];
+  const matches = fetched.matches;
 
   const supabase = createClient(supabaseUrl, serviceKey);
 
-  // A match is "complete" once it has a result recorded — a final score (group
-  // stage) or a decided winner (knockouts). The free football-data tier returns
-  // FINISHED with null scores, so results are entered by hand; we must never let
-  // a later sync overwrite a complete match back to nulls. Skip those api_ids.
+  // The free football-data tier returns FINISHED with null scores, so results
+  // are entered by hand; we must never let a later sync overwrite a complete
+  // match back to nulls. Skip those api_ids in the upsert below.
   const { data: existing, error: exErr } = await supabase
     .from('matches')
-    .select('api_id, home_score, away_score, winner');
+    .select('id, api_id, home_team, away_team, home_score, away_score, winner');
   if (exErr) {
     return json({ error: exErr.message }, 500);
   }
+  const existingRows = (existing ?? []) as ExistingMatch[];
+
   const complete = new Set(
-    (existing ?? [])
-      .filter(
-        (m) =>
-          (m.home_score != null && m.away_score != null) || m.winner != null,
-      )
-      .map((m) => m.api_id),
+    existingRows
+      .filter(isComplete)
+      .map((m) => m.api_id)
+      .filter((v) => v != null),
   );
+
+  // Adopt hand-created matches the API now publishes (see planClaims): stamp
+  // our row with the real api_id so the upsert updates it, not duplicates it.
+  const claims = planClaims(existingRows, matches);
+  for (const c of claims) {
+    const { error: cErr } = await supabase
+      .from('matches')
+      .update({ api_id: c.api_id })
+      .eq('id', c.id);
+    if (cErr) {
+      return json({ error: cErr.message }, 500);
+    }
+  }
 
   const rows = matches
     .filter((m) => m.homeTeam?.name && m.awayTeam?.name)
-    .filter((m) => !complete.has(m.id))
+    .filter((m) => {
+      // Not yet complete locally → always sync from the API.
+      if (!complete.has(m.id)) return true;
+      // Already complete locally: the full sync (list endpoint) must never
+      // overwrite — it returns null scores on the free tier. A per-match sync
+      // hits the single-match endpoint (real scores), so it may overwrite, but
+      // only when the API actually has a result (don't wipe it back to null).
+      return singleApiId != null && apiHasResult(m);
+    })
     .map((m) => ({
       api_id: m.id,
       stage: m.stage,
@@ -152,6 +262,7 @@ Deno.serve(async (req) => {
 
   return json({
     synced: rows.length,
+    linked: claims.length,
     skipped_complete: complete.size,
     total_from_api: matches.length,
   });

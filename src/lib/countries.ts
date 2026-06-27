@@ -155,3 +155,18 @@ export function teamFlag(name: string | null | undefined): string | null {
   const c = lookup(name);
   return c ? `https://flagcdn.com/${c.iso}.svg` : null;
 }
+
+// Canonical team list for the manual "create match" form: one entry per
+// country (deduped by flag), `value` is the English key we store in
+// matches.home_team/away_team (so the sync can match it back to the API),
+// `label` is the Spanish name shown in the dropdown. Sorted by Spanish name.
+export const teamOptions: ReadonlyArray<{ value: string; label: string }> = (() => {
+  const seen = new Set<string>();
+  const out: { value: string; label: string }[] = [];
+  for (const [key, c] of Object.entries(ES)) {
+    if (seen.has(c.iso)) continue; // first key per flag wins (canonical name)
+    seen.add(c.iso);
+    out.push({ value: key, label: c.es });
+  }
+  return out.sort((a, b) => a.label.localeCompare(b.label, 'es'));
+})();

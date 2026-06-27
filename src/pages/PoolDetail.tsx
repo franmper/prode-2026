@@ -10,8 +10,16 @@ import { MembersPanel } from '../components/MembersPanel';
 import { ScoringPanel } from '../components/ScoringPanel';
 import { RulesPanel } from '../components/RulesPanel';
 import { ResultsPanel } from '../components/ResultsPanel';
+import { CreateMatchPanel } from '../components/CreateMatchPanel';
 
-type Tab = 'matches' | 'board' | 'rules' | 'members' | 'scoring' | 'results';
+type Tab =
+  | 'matches'
+  | 'board'
+  | 'rules'
+  | 'members'
+  | 'scoring'
+  | 'results'
+  | 'create';
 
 export function PoolDetail() {
   const { poolId } = useParams<{ poolId: string }>();
@@ -162,6 +170,14 @@ export function PoolDetail() {
             Resultados
           </button>
         )}
+        {isOwner && (
+          <button
+            className={tab === 'create' ? 'active' : ''}
+            onClick={() => setTab('create')}
+          >
+            Agregar partido
+          </button>
+        )}
       </div>
 
       {tab === 'matches' && <MatchList poolId={pool.id} />}
@@ -195,6 +211,17 @@ export function PoolDetail() {
             sincronización automática no lo pisa.
           </p>
           <ResultsPanel poolId={pool.id} />
+        </div>
+      )}
+      {tab === 'create' && isOwner && (
+        <div className="card">
+          <h3 style={{ marginTop: 0 }}>Agregar partido a mano</h3>
+          <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
+            Usalo cuando la API todavía no trae un partido. Ojo: el partido se
+            agrega al fixture de todas las ligas (es compartido). Cuando la API
+            lo publique, se vincula solo al sincronizar.
+          </p>
+          <CreateMatchPanel poolId={pool.id} />
         </div>
       )}
     </div>
