@@ -146,6 +146,26 @@ async function readSingleApiId(req: Request): Promise<number | null> {
   }
 }
 
+// football-data.org occasionally resets the connection (os error 104),
+// especially on the free tier. Retry a few times with a short backoff before
+// giving up — a thrown fetch (network error) is transient, a non-2xx is not.
+async function fetchWithRetry(
+  url: string,
+  init: RequestInit,
+  attempts = 3,
+): Promise<Response> {
+  let lastErr: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fetch(url, init);
+    } catch (e) {
+      lastErr = e;
+      await new Promise((r) => setTimeout(r, 500 * (i + 1)));
+    }
+  }
+  throw lastErr;
+}
+
 // Pull matches from football-data.org: the whole competition, or just one match
 // when singleApiId is given. Returns an error Response on a non-2xx API reply.
 async function fetchFixtures(
@@ -156,7 +176,7 @@ async function fetchFixtures(
     ? `https://api.football-data.org/v4/competitions/${COMPETITION}/matches`
     : `https://api.football-data.org/v4/matches/${singleApiId}`;
 
-  const res = await fetch(url, { headers: { 'X-Auth-Token': apiKey } });
+  const res = await fetchWithRetry(url, { headers: { 'X-Auth-Token': apiKey } });
   if (!res.ok) {
     return {
       error: json({ error: `Football API ${res.status}`, body: await res.text() }, 502),
