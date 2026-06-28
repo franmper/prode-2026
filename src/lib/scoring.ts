@@ -90,7 +90,7 @@ export function lockAt(match: Match, all: Match[]): Date {
   // Anything that isn't the group stage (incl. a null stage) locks 1h before
   // the phase's first match — mirrors match_lock_at's `else` branch in SQL.
   if (match.stage !== 'GROUP_STAGE') {
-    return new Date(first.getTime() - 60 * 60 * 1000); // 1h before kickoff
+    return new Date(first.getTime() - 5 * 60 * 1000); // 1h before kickoff
   }
   const argDay = new Intl.DateTimeFormat('en-CA', {
     timeZone: ARG_TZ,
