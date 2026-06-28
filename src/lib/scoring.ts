@@ -84,13 +84,13 @@ function roundFirstKickoff(match: Match, all: Match[]): string {
 // When predictions lock.
 // Group stage: midnight (ARG) of the day the round starts — i.e. editable
 //   until 23:59 ARG the day before.
-// Knockouts: one hour before the first match of the phase.
+// Knockouts: 5 minutes before the first match of the phase.
 export function lockAt(match: Match, all: Match[]): Date {
   const first = new Date(roundFirstKickoff(match, all));
-  // Anything that isn't the group stage (incl. a null stage) locks 1h before
+  // Anything that isn't the group stage (incl. a null stage) locks 5 min before
   // the phase's first match — mirrors match_lock_at's `else` branch in SQL.
   if (match.stage !== 'GROUP_STAGE') {
-    return new Date(first.getTime() - 5 * 60 * 1000); // 1h before kickoff
+    return new Date(first.getTime() - 5 * 60 * 1000); // 5 min before kickoff
   }
   const argDay = new Intl.DateTimeFormat('en-CA', {
     timeZone: ARG_TZ,
