@@ -88,7 +88,10 @@ export function MatchList({ poolId }: { poolId: string }) {
     Record<string, Set<string>>
   >({});
   const [loading, setLoading] = useState(true);
-  const [savingId, setSavingId] = useState<string | null>(null);
+  // Match ids con un guardado en vuelo. Es un Set (no un único id) para que
+  // tocar varios partidos seguidos guarde todos en paralelo en vez de que el
+  // candado global descarte los toques mientras uno está guardando.
+  const [savingIds, setSavingIds] = useState<Set<string>>(new Set());
   const [error, setError] = useState('');
   // Selected tab. Null -> fall back to the first section with open matches.
   const [activeKey, setActiveKey] = useState<string | null>(null);
@@ -191,31 +194,70 @@ export function MatchList({ poolId }: { poolId: string }) {
     };
   }, [load, poolId]);
 
+  const markSaving = (matchId: string, on: boolean) =>
+    setSavingIds((prev) => {
+      const next = new Set(prev);
+      if (on) next.add(matchId);
+      else next.delete(matchId);
+      return next;
+    });
+
   async function pick(match: Match, outcome: Outcome) {
-    if (!user || savingId) return;
-    setSavingId(match.id);
+    if (!user) return;
+    // Re-toque del mismo resultado: nada que guardar.
+    if (myPreds[match.id]?.predicted_outcome === outcome) return;
+    const uid = user.id;
     setError('');
+    // Update optimista: el toque se refleja al instante y no recargamos todo
+    // en cada pick (eso era lo que alargaba el guardado y "comía" toques).
+    setMyPreds((prev) => ({
+      ...prev,
+      [match.id]: {
+        ...(prev[match.id] ?? ({} as Prediction)),
+        user_id: uid,
+        match_id: match.id,
+        predicted_outcome: outcome,
+      },
+    }));
+    setPicksByMatch((prev) => ({
+      ...prev,
+      [match.id]: { ...(prev[match.id] ?? {}), [uid]: outcome },
+    }));
+    markSaving(match.id, true);
     const { error } = await supabase.from('predictions').upsert(
-      { user_id: user.id, match_id: match.id, predicted_outcome: outcome },
+      { user_id: uid, match_id: match.id, predicted_outcome: outcome },
       { onConflict: 'user_id,match_id' },
     );
-    if (error) setError(error.message);
-    else await load();
-    setSavingId(null);
+    markSaving(match.id, false);
+    // Si falló, recargamos para revertir el estado optimista.
+    if (error) {
+      setError(error.message);
+      load();
+    }
   }
 
   async function toggleDouble(match: Match) {
-    if (!user || savingId) return;
-    setSavingId(match.id);
+    if (!user || savingIds.has(match.id)) return;
+    const turnOn = !myDoubles.has(match.id);
     setError('');
+    // Optimista; si la RPC falla, load() revierte al estado real.
+    setMyDoubles((prev) => {
+      const next = new Set(prev);
+      if (turnOn) next.add(match.id);
+      else next.delete(match.id);
+      return next;
+    });
+    markSaving(match.id, true);
     const { error } = await supabase.rpc('set_match_double', {
       p_pool_id: poolId,
       p_match_id: match.id,
-      p_on: !myDoubles.has(match.id),
+      p_on: turnOn,
     });
-    if (error) setError(error.message);
-    else await load();
-    setSavingId(null);
+    markSaving(match.id, false);
+    if (error) {
+      setError(error.message);
+      load();
+    }
   }
 
   const flagImg = (raw: string | null | undefined) => {
@@ -416,7 +458,6 @@ export function MatchList({ poolId }: { poolId: string }) {
                     'outcome-btn' +
                     (myPred?.predicted_outcome === o ? ' active' : '')
                   }
-                  disabled={savingId === m.id}
                   onClick={() => pick(m, o)}
                 >
                   {label(m, o)}
@@ -424,7 +465,7 @@ export function MatchList({ poolId }: { poolId: string }) {
               ))}
             </div>
             <div className="muted" style={{ fontSize: 12, marginTop: 8 }}>
-              {savingId === m.id
+              {savingIds.has(m.id)
                 ? 'Guardando…'
                 : myPred
                   ? 'Pronóstico guardado — podés cambiarlo'
@@ -439,7 +480,7 @@ export function MatchList({ poolId }: { poolId: string }) {
                 <button
                   className={'doble-btn' + (doubled ? ' active' : '')}
                   disabled={
-                    savingId === m.id || (!doubled && stageRemaining === 0)
+                    savingIds.has(m.id) || (!doubled && stageRemaining === 0)
                   }
                   onClick={() => toggleDouble(m)}
                   title="Tu comodín duplica los puntos de este partido"
